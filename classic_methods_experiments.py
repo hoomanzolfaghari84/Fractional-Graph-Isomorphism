@@ -13,7 +13,6 @@ import torch.nn as nn
 import torch.optim as optim
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
-import numpy as np
 from sklearn.svm import SVC
 from grakel.kernels import WeisfeilerLehman, VertexHistogram
 
@@ -42,25 +41,24 @@ def run_knn_experiment(dataset):
     spectral_matrix = np.zeros((len(val_loader), len(train_loader),2))
     fractional_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
 
-    lam = 3
-    k = 7
+    lam = 2
+    k = 5
 
     spectral_preds = []
     frational_preds = []
     true_labels = []
 
     for val_idx, val_data in enumerate(val_loader):
-
+        
         val_adj = to_dense_adj(val_data.edge_index, max_num_nodes=val_data.x.size(0)).squeeze(0)
-        val_nx = to_networkx(val_data)  # Convert to networkx graph
-
+         
+        
         for train_idx, train_data in enumerate(train_loader):
 
             train_adj = to_dense_adj(train_data.edge_index, max_num_nodes=train_data.x.size(0)).squeeze(0)
-            train_nx = to_networkx(train_data)
             
             # compute wasserstein spectral distance
-            spectral_matrix[val_idx][train_idx][0] = wasserstein_spectral_distance(val_nx,train_nx)
+            spectral_matrix[val_idx][train_idx][0] = wasserstein_spectral_distance(val_data,train_data)
             spectral_matrix[val_idx][train_idx][1] = train_data.y
 
             # compute Fractional Isomorphism Distance

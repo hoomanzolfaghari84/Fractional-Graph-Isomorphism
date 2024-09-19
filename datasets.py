@@ -8,8 +8,10 @@ from torch_geometric.datasets import TUDataset
 from collections import Counter
 import torch
 from random import shuffle
-from torch_geometric.data import DataLoader
 import random
+import torch
+from torch_geometric.data import DataLoader
+from random import shuffle
 
 dataset = TUDataset(root='datasets/MUTAG', name='MUTAG')
 dataset = TUDataset(root='datasets/ENZYMES', name='ENZYMES')
@@ -52,6 +54,7 @@ def load_dataset(name, verbose=True):
         data = dataset[0]
         print()
         print(data)
+        print(f'is directed: {data.is_directed()}')
         print('=============================================================')
 
         # some statistics about the dataset
@@ -128,51 +131,64 @@ def get_train_val_test_loaders(dataset):
     return train_loader, val_loader, test_loader
 
 
+def get_m_shot_loaders(dataset, m, batch_size=1, val_split=0.5):
+    """
+    Args:
+    - dataset: PyTorch dataset where each sample has a 'y' attribute for the label.
+    - m: Number of samples per class for training (m-shot learning).
+    - batch_size: Batch size for the data loaders.
+    - val_split: Fraction of the remaining data used for validation. The rest is used for testing.
 
-def get_m_shot_loaders(dataset, m):
-    
-    samples_per_class = {}
-    remaining_data = []
+    Returns:
+    - train_loader: DataLoader for training (m samples per class).
+    - val_loader: DataLoader for validation.
+    - test_loader: DataLoader for testing.
+    """
 
-    # Collect samples for each class
-    for data in dataset:
-        label = data.y.item()
-        if label not in samples_per_class:
-            samples_per_class[label] = []
+    # Dictionary to store samples per class
+    samples_per_class = defaultdict(list)
+    remaining_indices = []
+
+    # Shuffle dataset indices
+    dataset_indices = list(range(len(dataset)))
+    shuffle(dataset_indices)
+
+    # Collect samples and split m-shot for each class
+    for idx in dataset_indices:
+        data = dataset[idx]
+        label = data.y.item()  # Assuming that each data has a 'y' attribute for the label
         if len(samples_per_class[label]) < m:
-            samples_per_class[label].append(data)
+            samples_per_class[label].append(idx)
         else:
-            # Keep remaining data for test/validation
-            remaining_data.append(data)
+            remaining_indices.append(idx)
 
-    # Shuffle the training data within each class
-    final_train_dataset = []
-    for label in samples_per_class:
-        shuffle(samples_per_class[label])
-        final_train_dataset += samples_per_class[label][:m]
-
-    # Convert to PyTorch dataset
-    final_train_dataset = torch.utils.data.Subset(dataset, [dataset.index(data) for data in final_train_dataset])
+    # Create train dataset with m-shot samples per class
+    train_indices = [idx for indices in samples_per_class.values() for idx in indices]
+    train_subset = dataset.index_select(train_indices)
 
     # Shuffle remaining data
-    shuffle(remaining_data)
+    shuffle(remaining_indices)
 
-    # Split remaining data into test (50%) and validation (50%)
-    split_ratio = 0.8
-    split_idx = int(split_ratio * len(remaining_data))
-    test_dataset = remaining_data[:split_idx]
-    val_dataset = remaining_data[split_idx:]
+    # Split remaining data into validation and test sets
+    if val_split == 0:
+        test_indices = remaining_indices
+    elif val_split == 1:
+        val_indices = remaining_indices
+    else:
+        val_size = int(val_split * len(remaining_indices))
+        val_indices = remaining_indices[:val_size]
+        test_indices = remaining_indices[val_size:]
 
-    # Convert test and validation to PyTorch subsets
-    final_test_dataset = torch.utils.data.Subset(dataset, [dataset.index(data) for data in test_dataset])
-    final_val_dataset = torch.utils.data.Subset(dataset, [dataset.index(data) for data in val_dataset])
+    # Create subsets for validation and test sets
+    val_subset = dataset.index_select(val_indices)
+    test_subset = dataset.index_select( test_indices)
 
-    train_loader = DataLoader(final_train_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(final_test_dataset, batch_size=32, shuffle=False)
-    val_loader = DataLoader(final_val_dataset, batch_size=32, shuffle=False)
+    # Create DataLoaders
+    train_loader = DataLoader(dataset[train_indices], batch_size=batch_size, shuffle=False) # later set shuffle true
+    val_loader = DataLoader(dataset[val_indices], batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(dataset[test_indices], batch_size=batch_size, shuffle=False)
 
     return train_loader, val_loader, test_loader
-
 
 
 class TripletDataset(torch.utils.data.Dataset):

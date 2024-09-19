@@ -16,6 +16,7 @@ from sklearn.metrics.pairwise import cosine_distances
 from scipy.spatial.distance import mahalanobis
 from scipy.stats import wasserstein_distance
 import torch
+import cvxpy as cp
 
 # ----------------------------------------------------------------
 # ----------------------------------------------------------------
@@ -61,8 +62,8 @@ def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_di
             raise Exception('wrong euclid metric')
 
     # Get adjacency matrices and print their shapes
-    A_G = A_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
-    A_H = A_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
+    A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
+    A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
 
     # Set up cvxpy problem
     X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
@@ -117,7 +118,11 @@ def compute_spectral_measure(G):
     return eigenvalues
 
 # Function to compute the p-th Wasserstein distance between two graphs' spectral measures
-def wasserstein_spectral_distance(G1, G2, p=2):
+def wasserstein_spectral_distance(data1, data2, p=2):
+
+    G1 = to_networkx(data1, to_undirected=True) # idk why on my local nx works with undirected only. a version difference maybe
+    G2 = to_networkx(data2, to_undirected=True)
+
     # Compute the spectral measures (eigenvalues) for both graphs
     eigs_g1 = compute_spectral_measure(G1)
     eigs_g2 = compute_spectral_measure(G2)
