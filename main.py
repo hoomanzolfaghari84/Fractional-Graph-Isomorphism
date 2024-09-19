@@ -9,9 +9,9 @@ def run():
     # torch.manual_seed(42)  # For reproducibility
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    dataset = load_dataset('Letter-high')
+    dataset = load_dataset('Letter-low')
 
-    run_fewshot_without_training(dataset)
+    run_knn_experiment(dataset)
 
 
 if __name__ == '__main__':

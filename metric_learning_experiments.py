@@ -1,3 +1,4 @@
+from classic_methods_experiments import find_k_nearest_label
 from datasets import get_train_val_test_loaders, get_triplet_loader
 from distance_functions import isomorphism_distance_adjmatrix
 
@@ -135,7 +136,7 @@ def validate_triplet_model(model,train_loader,val_loader,lambda_param):
             phi_train = model(train_data.x, train_data.edge_index)
             A_train = to_dense_adj(train_data.edge_index, max_num_nodes=phi_train.size(0)).squeeze(0)#.detach()
 
-            cost, _ ,_ ,_, _ = solve_fractional_lp_cost(phi_val, phi_train, A_val, A_train, lambda_param_eval)
+            cost, _ ,_ ,_, _ = isomorphism_distance_adjmatrix(phi_val, phi_train, A_val, A_train, lambda_param_eval)
 
             if cost is not None:
                   dist_matrix[val_idx][train_idx][0] = cost

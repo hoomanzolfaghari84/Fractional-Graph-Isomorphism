@@ -165,6 +165,7 @@ def get_m_shot_loaders(dataset, m, batch_size=1, val_split=0.5):
     # Create train dataset with m-shot samples per class
     train_indices = [idx for indices in samples_per_class.values() for idx in indices]
     train_subset = dataset.index_select(train_indices)
+    train_loader = DataLoader(dataset[train_indices], batch_size=batch_size, shuffle=False) # later set shuffle true
 
     # Shuffle remaining data
     shuffle(remaining_indices)
@@ -172,21 +173,20 @@ def get_m_shot_loaders(dataset, m, batch_size=1, val_split=0.5):
     # Split remaining data into validation and test sets
     if val_split == 0:
         test_indices = remaining_indices
+        test_loader = DataLoader(dataset[test_indices], batch_size=batch_size, shuffle=False)
     elif val_split == 1:
         val_indices = remaining_indices
+        val_loader = DataLoader(dataset[val_indices], batch_size=batch_size, shuffle=False)
     else:
         val_size = int(val_split * len(remaining_indices))
         val_indices = remaining_indices[:val_size]
         test_indices = remaining_indices[val_size:]
+        val_loader = DataLoader(dataset[val_indices], batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader(dataset[test_indices], batch_size=batch_size, shuffle=False)
 
-    # Create subsets for validation and test sets
-    val_subset = dataset.index_select(val_indices)
-    test_subset = dataset.index_select( test_indices)
-
-    # Create DataLoaders
-    train_loader = DataLoader(dataset[train_indices], batch_size=batch_size, shuffle=False) # later set shuffle true
-    val_loader = DataLoader(dataset[val_indices], batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(dataset[test_indices], batch_size=batch_size, shuffle=False)
+    # # Create subsets for validation and test sets
+    # val_subset = dataset.index_select(val_indices)
+    # test_subset = dataset.index_select( test_indices)
 
     return train_loader, val_loader, test_loader
 

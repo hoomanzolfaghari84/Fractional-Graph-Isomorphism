@@ -31,7 +31,9 @@ from metric_learning_experiments import GINGraphModel, train_triplet_model, vali
 
 
 def run_fewshot_without_training(dataset, device = 'cpu'):
-    train_loader, val_loader, test_loader = get_m_shot_loaders(dataset, 5)
+
+
+    train_loader, val_loader, test_loader = get_m_shot_loaders(dataset, 5, val_split=1)
 
     spectral_matrix = np.zeros((len(val_loader), len(train_loader),2))
     fractional_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
@@ -76,6 +78,11 @@ def run_fewshot_without_training(dataset, device = 'cpu'):
     print(f'fractional acc: {accuracy_score(frational_preds, true_labels)}')
 
 
+## --------------------------------
+## --------------------------------
+## fewshot with training
+##
+
 def run_fewshot_with_transfered_training(dataset, device='cpu'):
     # # split base class data
 
@@ -87,7 +94,7 @@ def run_fewshot_with_transfered_training(dataset, device='cpu'):
 
 
 
-def  base_training(base_data):
+def  base_training(base_data, device = 'cpu'):
     # Setup
     train_loader, val_loader, test_loader = get_train_val_test_loaders(base_data)
     triplet_loader = get_triplet_loader(train_loader.dateset)

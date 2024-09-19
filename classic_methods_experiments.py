@@ -7,7 +7,7 @@ from grakel import datasets
 from torch_geometric.utils import to_networkx, to_dense_adj
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -33,7 +33,7 @@ def find_k_nearest_label(dists, k=1):
     knn_labels = dists[indices, 1].astype(int)  # Ensure labels are integers
 
     # Return the label with the highest frequency
-    return np.bincount(knn_labels).argmax()
+    return np.bincount(knn_labels).argmax(), dists[indices,0].mean()
 
 def run_knn_experiment(dataset):
     train_loader, val_loader, test_loader = get_train_val_test_loaders(dataset)
@@ -41,12 +41,15 @@ def run_knn_experiment(dataset):
     spectral_matrix = np.zeros((len(val_loader), len(train_loader),2))
     fractional_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
 
-    lam = 2
+    lam = 3
     k = 5
 
     spectral_preds = []
     frational_preds = []
     true_labels = []
+
+    spectral_kdists = []
+    fractional_kdists = []
 
     for val_idx, val_data in enumerate(val_loader):
         
@@ -68,18 +71,31 @@ def run_knn_experiment(dataset):
             fractional_dist_matrix[val_idx][train_idx][1] = train_data.y
 
 
-        spectral_predict = find_k_nearest_label(spectral_matrix[val_idx],k)
-        frational_predict = find_k_nearest_label(fractional_dist_matrix[val_idx],k)
+        spectral_predict, spectral_kdist = find_k_nearest_label(spectral_matrix[val_idx],k)
+        frational_predict, fractional_kdist = find_k_nearest_label(fractional_dist_matrix[val_idx],k)
         
         spectral_preds.append(spectral_predict)
         frational_preds.append(frational_predict)
-        
+
+        spectral_kdists.append(spectral_kdist)
+        fractional_kdists.append(fractional_kdist)
+
         true_labels.append(val_data.y)
 
         # clear_output()
-    print(f'spectral acc: {accuracy_score(spectral_preds, true_labels)}')
-    print(f'fractional acc: {accuracy_score(frational_preds, true_labels)}')
-        
+
+    print()
+    print('classification result:')
+    print()
+    print(f'spectral acc: {accuracy_score(true_labels, spectral_preds)}')
+    print(f'spectral f1: {f1_score(true_labels, spectral_preds)}')
+    print(f'spectral report: {classification_report(true_labels, spectral_preds)}')
+    print('================================================================')
+    print(f'fractional acc: {accuracy_score(true_labels, frational_preds)}')
+    print(f'fractional f1: {f1_score(true_labels, frational_preds)}')
+    print(f'fractional report: {classification_report(true_labels, frational_preds)}')
+    print('================================================================')
+    print(f'dists mean difference{(np.array(spectral_kdists) - np.array(fractional_kdists).mean())}') 
 
 # ----------------------------------------------------------------
 # ----------------------------------------------------------------
@@ -184,7 +200,7 @@ def run_svm_experiment(dataset):
     y_pred = svm.predict(wl_val)
     # Evaluate accuracy
     accuracy = accuracy_score(y_val_grakel, y_pred)
-    print(f"SVM Classification Accuracy using weisfeiler_lehman Kernel: {accuracy}")
+    print(f"SVM Classification Accuracy using weisfeiler lehman Kernel: {accuracy}")
 
 
 
