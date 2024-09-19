@@ -15,6 +15,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics.pairwise import cosine_distances
 from scipy.spatial.distance import mahalanobis
 from scipy.stats import wasserstein_distance
+import torch
 
 # ----------------------------------------------------------------
 # ----------------------------------------------------------------
@@ -28,8 +29,9 @@ graph_formats = ['adj_matrix', 'coo' , 'py_data' ]
 
 class IsomorphismDistance:
     
-    def __init__(self, euclidean_distance, mapping, lp_solver, graph_format):
+    def __init__(self, euclidean_distance, structural_distance, mapping, lp_solver, graph_format):
         self.euclidean_distance =euclidean_distance
+        self.structural_distance = structural_distance
         self.mapping = mapping
         self.lp_solver = lp_solver
         self.graph_format = graph_format
@@ -43,7 +45,7 @@ def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_di
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
     # Compute the Euclidean distances between node features
-    if euclidean_distance == 'l2':
+    if euclidean_distance == 'L2':
         C = torch.cdist(phi_G, phi_H, p=2).detach().cpu().numpy()
     else:
         phi_G = phi_G.detach().cpu().numpy()

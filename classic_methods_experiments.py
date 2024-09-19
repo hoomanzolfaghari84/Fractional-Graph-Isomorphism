@@ -90,7 +90,7 @@ def run_knn_experiment(dataset):
 
 def fractional_rbf_kernel(phi_G, phi_H, A_G, A_H, lambda_param, sigma = 1):
 
-    d,_,_,_,_ = solve_fractional_lp_cost(phi_G, phi_H, A_G, A_H, lambda_param)
+    d,_,_,_,_ = isomorphism_distance_adjmatrix(phi_G, phi_H, A_G, A_H, lambda_param)
 
     return np.exp(-np.linalg.norm(d) ** 2 / (2 * (sigma ** 2)))
 
@@ -206,3 +206,14 @@ def run_svm_experiment(dataset):
 # # Evaluate clustering quality
 # silhouette_avg = silhouette_score(ged_matrix, cluster_labels, metric='precomputed')
 # print(f"Silhouette Score using GED: {silhouette_avg}")
+
+
+
+
+# ----------------------------------------------------------------
+# ----------------------------------------------------------------
+# number of train data influence experiment
+#
+
+def run_numof_train_data_experiment(dataset, device = 'cpu'):
+    pass
