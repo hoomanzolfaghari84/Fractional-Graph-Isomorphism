@@ -1,0 +1,129 @@
+################################################################k-NN classification result for :MUTAG(188)used lamda=3. Train-Val-Test split:94-37-57================================================with k={k}spectral report:               precision    recall  f1-score   support
+
+         0.0       0.00      0.00      0.00        12
+         1.0       0.68      1.00      0.81        25
+
+    accuracy                           0.68        37
+   macro avg       0.34      0.50      0.40        37
+weighted avg       0.46      0.68      0.54        37
+================================================================fractional report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_constrained report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_structure_only report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================with k={k}spectral report:               precision    recall  f1-score   support
+
+         0.0       0.00      0.00      0.00        12
+         1.0       0.68      1.00      0.81        25
+
+    accuracy                           0.68        37
+   macro avg       0.34      0.50      0.40        37
+weighted avg       0.46      0.68      0.54        37
+================================================================fractional report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_constrained report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_structure_only report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================with k={k}spectral report:               precision    recall  f1-score   support
+
+         0.0       0.00      0.00      0.00        12
+         1.0       0.68      1.00      0.81        25
+
+    accuracy                           0.68        37
+   macro avg       0.34      0.50      0.40        37
+weighted avg       0.46      0.68      0.54        37
+================================================================fractional report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_constrained report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_structure_only report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================with k={k}spectral report:               precision    recall  f1-score   support
+
+         0.0       0.00      0.00      0.00        12
+         1.0       0.68      1.00      0.81        25
+
+    accuracy                           0.68        37
+   macro avg       0.34      0.50      0.40        37
+weighted avg       0.46      0.68      0.54        37
+================================================================fractional report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_constrained report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+================================================================fractional_structure_only report:               precision    recall  f1-score   support
+
+         0.0       0.90      0.75      0.82        12
+         1.0       0.89      0.96      0.92        25
+
+    accuracy                           0.89        37
+   macro avg       0.89      0.85      0.87        37
+weighted avg       0.89      0.89      0.89        37
+################################################################

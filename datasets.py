@@ -10,7 +10,7 @@ import torch
 from random import shuffle
 import random
 import torch
-from torch_geometric.data import DataLoader
+# from torch_geometric.data import DataLoader
 from random import shuffle
 
 dataset = TUDataset(root='datasets/MUTAG', name='MUTAG')
@@ -112,7 +112,7 @@ def get_train_val_test_loaders(dataset):
 
     # Define train, validation, and test split sizes
     train_size = int(0.7 * len(dataset))
-    val_size = int(0.15 * len(dataset))
+    val_size = int(0.2 * len(dataset))
     test_size = len(dataset) - train_size - val_size
 
     # Split the dataset
@@ -174,9 +174,11 @@ def get_m_shot_loaders(dataset, m, batch_size=1, val_split=0.5):
     if val_split == 0:
         test_indices = remaining_indices
         test_loader = DataLoader(dataset[test_indices], batch_size=batch_size, shuffle=False)
+        val_loader = None
     elif val_split == 1:
         val_indices = remaining_indices
         val_loader = DataLoader(dataset[val_indices], batch_size=batch_size, shuffle=False)
+        test_loader = None
     else:
         val_size = int(val_split * len(remaining_indices))
         val_indices = remaining_indices[:val_size]

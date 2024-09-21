@@ -39,6 +39,97 @@ class IsomorphismDistance:
 
     def __call__(self):
         pass
+def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional'):
+    num_v_G = phi_G.size(0)  # Number of vertices in graph G
+    num_v_H = phi_H.size(0)  # Number of vertices in graph H
+
+    # Compute the Euclidean distances between node features
+    if euclidean_distance == 'L2':
+        C = torch.cdist(phi_G, phi_H, p=2).detach().cpu().numpy()
+    else:
+        phi_G = phi_G.detach().cpu().numpy()
+        phi_H = phi_H.detach().cpu().numpy()
+
+        if euclidean_distance == 'cosine':
+            C = cosine_distances(phi_G, phi_H)
+        elif euclidean_distance == 'mahalanobis':
+            C = compute_mahalanobis_distance_matrix(phi_G, phi_H)
+        elif euclidean_distance == 'wasserstein':
+            C = compute_wasserstein_distance_matrix(phi_G, phi_H)
+        else:
+            raise Exception('wrong euclid metric')
+
+    # Get adjacency matrices and print their shapes
+    A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
+    A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
+
+    # Set up cvxpy problem
+    X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
+    x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
+    x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
+
+    # Objective function: minimize the total cost
+    cost = cp.sum(cp.multiply(C, X)) + lam * cp.sum(x_v_empty) + lam * cp.sum(x_empty_i)
+
+    constraints = [
+        X <= 1,  # Ensure the fractional mapping is between 0 and 1
+        x_v_empty <= 1,  # Ensure unmapped vertices in G are between 0 and 1
+        x_empty_i <= 1,  # Ensure unmapped vertices in H are between 0 and 1
+        x_v_empty + cp.sum(X, axis=1) == 1,  # For all v in V(G)
+        x_empty_i + cp.sum(X, axis=0) == 1,  # For all i in V(H)
+        A_G @ X == X @ A_H  # Edge preservation
+    ]
+
+    try:
+        # Solve the LP problem
+        problem = cp.Problem(cp.Minimize(cost), constraints)
+        problem.solve(solver=cp.SCS)
+
+        # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
+        return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
+
+    except Exception as e:
+        print(f"Error occurred while solving LP: {e}")
+        return None
+
+def isomorphism_distance_adjmatrix_only_structure(phi_G, Adj_G, phi_H, Adj_H, lam, mapping = 'fractional'):
+    num_v_G = phi_G.size(0)  # Number of vertices in graph G
+    num_v_H = phi_H.size(0)  # Number of vertices in graph H
+
+
+    # Get adjacency matrices and print their shapes
+    A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
+    A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
+
+    # Set up cvxpy problem
+    X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
+    x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
+    x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
+
+    # Objective function: minimize the total cost
+    cost = lam * cp.sum(x_v_empty) + lam * cp.sum(x_empty_i) + cp.norm(A_G @ X - X @ A_H, "fro")
+    # cost = lambda_param * cp.sum(x_v_empty) + lambda_param * cp.sum(x_empty_i) + cp.norm(A_G @ X - X @ A_H, "fro")
+
+    constraints = [
+        X <= 1,  # Ensure the fractional mapping is between 0 and 1
+        x_v_empty <= 1,  # Ensure unmapped vertices in G are between 0 and 1
+        x_empty_i <= 1,  # Ensure unmapped vertices in H are between 0 and 1
+        x_v_empty + cp.sum(X, axis=1) == 1,  # For all v in V(G)
+        x_empty_i + cp.sum(X, axis=0) == 1,  # For all i in V(H)
+    ]
+
+    try:
+        # Solve the LP problem
+        problem = cp.Problem(cp.Minimize(cost), constraints)
+        problem.solve(solver=cp.SCS)
+
+        # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
+        return problem.value , X.value, x_v_empty.value, x_empty_i.value
+
+    except Exception as e:
+        print(f"Error occurred while solving LP: {e}")
+        return None
+
 
 
 def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional'):
@@ -87,7 +178,7 @@ def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_di
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        problem.solve()
+        problem.solve(solver=cp.SCS)
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
         return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
@@ -130,21 +221,21 @@ def homomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_d
     # Set up cvxpy problem
     X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
     x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
-    x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
+    
 
     # Objective function: minimize the total cost
-    cost = cp.sum(cp.multiply(C, X)) + lam * cp.sum(x_v_empty) + lam * cp.sum(x_empty_i) + cp.norm(A_G @ X - X @ A_H, "fro")
+    cost = cp.sum(cp.multiply(C, X)) + lam * cp.sum(x_v_empty) + cp.norm(X @ A_H - A_G @ X, "fro")
     # cost = lambda_param * cp.sum(x_v_empty) + lambda_param * cp.sum(x_empty_i) + cp.norm(A_G @ X - X @ A_H, "fro")
 
     # Correct structural constraint
     constraints = [
         X <= 1,  # Ensure the fractional mapping is between 0 and 1
         x_v_empty <= 1,  # Ensure unmapped vertices in G are between 0 and 1
-        x_empty_i <= 1,  # Ensure unmapped vertices in H are between 0 and 1
         x_v_empty + cp.sum(X, axis=1) == 1,  # For all v in V(G)
-        x_empty_i + cp.sum(X, axis=0) == 1,  # For all i in V(H)
-        # A_G @ X == X @ A_H  # Edge preservation
+        A_G @ X <= X @ A_H
     ]
+
+
 
     try:
         # Solve the LP problem
@@ -152,8 +243,7 @@ def homomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_d
         problem.solve()
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
-        return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
-
+        return problem.value , X.value, x_v_empty.value, C
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
         return None

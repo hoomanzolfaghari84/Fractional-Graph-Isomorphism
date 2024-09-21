@@ -4,7 +4,7 @@ from distance_functions import isomorphism_distance_adjmatrix
 
 import torch
 import torch.nn as nn
-from torch_geometric.nn import GINConv, GATConv
+from torch_geometric.nn import GINConv, GATConv, global_mean_pool
 import torch.optim as optim
 from torch_geometric.data import DataLoader
 import random
@@ -20,10 +20,67 @@ from torch_geometric.nn import GINConv, global_add_pool
 from torch_geometric.utils import to_dense_adj
 import numpy as np
 
+class MLPGraphModel(nn.Module):
+    def __init__(self,input_dim,hidden_dim, output_dim):
+        super(MLPGraphModel, self).__init__()
+
+        self.fine_tuning = False
+
+        self.conv1 = GINConv(nn.Sequential(nn.Linear(input_dim, int(hidden_dim/2)), nn.ReLU(), nn.Linear(int(hidden_dim/2), hidden_dim)))
+        self.conv2 = GINConv(nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, int(hidden_dim))))
+        
+        self.Linear1 = nn.Linear(hidden_dim, hidden_dim)
+        self.Linear3 = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self,x, edge_index):
+        x = self.conv1(x, edge_index)
+        x = torch.relu(x)
+
+        x = self.Linear1(x)
+        x = torch.relu(x)
+
+        x = self.Linear2(x)
+
+        
+
+        x = torch.relu(x)
+
+        x = self.Linear3(x)
+
+        return x
+
+class GINMLPModel(nn.Module): 
+    def __init__(self,input_dim,hidden_dim, num_classes):
+        super(GINMLPModel, self).__init__()
+        self.conv1 = GINConv(nn.Sequential(nn.Linear(input_dim, int(hidden_dim)), nn.ReLU(), nn.Linear(int(hidden_dim), hidden_dim)))
+        self.conv2 = GINConv(nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, int(hidden_dim))))
+        
+        # Fully connected layer
+        self.fc1 = torch.nn.Linear(hidden_dim, hidden_dim)
+        self.fc2 = torch.nn.Linear(hidden_dim, num_classes)
+
+    def forward(self,x, edge_index, batch):
+        x = self.conv1(x, edge_index)
+        x = F.relu(x)
+        x = self.conv2(x, edge_index)
+        x = F.relu(x)
+
+        
+        # Global pooling
+        x = global_mean_pool(x, batch)
+        
+        # Apply fully connected layers
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        
+        return F.log_softmax(x, dim=-1)
+
+
 class GINGraphModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(GINGraphModel, self).__init__()
-
+        
+        
 
         self.conv1 = GINConv(nn.Sequential(nn.Linear(input_dim, int(hidden_dim/2)), nn.ReLU(), nn.Linear(int(hidden_dim/2), hidden_dim)))
         self.conv2 = GINConv(nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, int(hidden_dim/2))))
@@ -37,7 +94,7 @@ class GINGraphModel(nn.Module):
 
         x = self.conv2(x, edge_index)
         x = torch.relu(x)
-
+        
         x = self.conv3(x, edge_index)
 
         return x  # Returning node embeddings without pooling

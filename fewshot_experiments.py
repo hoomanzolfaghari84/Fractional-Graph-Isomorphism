@@ -7,7 +7,7 @@ from grakel import datasets
 from torch_geometric.utils import to_networkx, to_dense_adj
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -33,13 +33,13 @@ from metric_learning_experiments import GINGraphModel, train_triplet_model, vali
 def run_fewshot_without_training(dataset, device = 'cpu'):
 
 
-    train_loader, val_loader, test_loader = get_m_shot_loaders(dataset, 5, val_split=1)
+    train_loader, val_loader, test_loader = get_m_shot_loaders(dataset, 10, val_split=1)
 
     spectral_matrix = np.zeros((len(val_loader), len(train_loader),2))
     fractional_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
 
-    lam = 1
-    k = 5
+    lam = 3
+    k = 1
 
     spectral_preds = []
     frational_preds = []
@@ -74,8 +74,11 @@ def run_fewshot_without_training(dataset, device = 'cpu'):
         true_labels.append(val_data.y)
 
         # clear_output()
-    print(f'spectral acc: {accuracy_score(spectral_preds, true_labels)}')
-    print(f'fractional acc: {accuracy_score(frational_preds, true_labels)}')
+    print(f'spectral acc: {accuracy_score(true_labels, spectral_preds)}')
+    print(f'fractional acc: {accuracy_score(true_labels, frational_preds)}')
+    print(f'spectral report:\n{classification_report(true_labels, frational_preds)}')
+    print(f'fractional report:\n{classification_report(true_labels, frational_preds)}')
+    
 
 
 ## --------------------------------
