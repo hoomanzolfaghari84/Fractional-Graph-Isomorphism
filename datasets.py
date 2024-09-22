@@ -28,6 +28,8 @@ def load_dataset(name, verbose=True):
         dataset = TUDataset(root='datasets/MUTAG', name='MUTAG')
     elif name == 'ENZYMES':
         dataset = TUDataset(root='datasets/ENZYMES', name='ENZYMES')
+    elif name == 'PROTEINS':
+        dataset = TUDataset(root='datasets/PROTEINS', name='PROTEINS')
     elif name == 'COX2':
         dataset = TUDataset(root='datasets/COX2', name='COX2')
     elif name == 'Letter-high':
@@ -111,8 +113,8 @@ def get_train_val_test_loaders(dataset):
     dataset = dataset.shuffle()
 
     # Define train, validation, and test split sizes
-    train_size = int(0.7 * len(dataset))
-    val_size = int(0.2 * len(dataset))
+    train_size = int(0.3 * len(dataset))
+    val_size = int(0.1 * len(dataset))
     test_size = len(dataset) - train_size - val_size
 
     # Split the dataset
