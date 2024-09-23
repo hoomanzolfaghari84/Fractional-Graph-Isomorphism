@@ -37,7 +37,7 @@ def load_dataset(name, verbose=True):
     elif name == 'Letter-low':
         dataset = TUDataset(root='datasets/Letter-low', name='Letter-low', transform=Constant(1))
     elif name == 'TRIANGLES':
-        dataset = TUDataset(root='datasets/TRIANGLES', name='TRIANGLES')
+        dataset = TUDataset(root='datasets/TRIANGLES', name='TRIANGLES', transform=Constant(1))
     elif name == 'IMDB-MULTI':
         dataset = TUDataset(root='datasets/PROTEINS', name='IMDB-MULTI', transform=Constant(1))                 
     else: 
@@ -113,8 +113,8 @@ def get_train_val_test_loaders(dataset):
     dataset = dataset.shuffle()
 
     # Define train, validation, and test split sizes
-    train_size = int(0.3 * len(dataset))
-    val_size = int(0.1 * len(dataset))
+    train_size = int(0.005 * len(dataset))
+    val_size = int(0.001 * len(dataset))
     test_size = len(dataset) - train_size - val_size
 
     # Split the dataset

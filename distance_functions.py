@@ -1,3 +1,4 @@
+import time
 import networkx as nx
 import numpy as np
 from scipy.linalg import eigh
@@ -39,7 +40,7 @@ class IsomorphismDistance:
 
     def __call__(self):
         pass
-def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional'):
+def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional', max_runtime=60):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
@@ -83,16 +84,23 @@ def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, 
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        problem.solve(solver=cp.SCS)
+        start_time = time.time()
+        while True:
+
+            problem.solve(solver=cp.SCS, max_iters = 100)
+            elapsed_time = time.time() - start_time
+            if elapsed_time > max_runtime:
+                print(f"Stopping due to time limit: {elapsed_time} seconds")
+                break
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
         return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
 
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
-        return None
+        raise e
 
-def isomorphism_distance_adjmatrix_only_structure(phi_G, Adj_G, phi_H, Adj_H, lam, mapping = 'fractional'):
+def isomorphism_distance_adjmatrix_only_structure(phi_G, Adj_G, phi_H, Adj_H, lam, mapping = 'fractional', max_runtime=60):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
@@ -121,18 +129,25 @@ def isomorphism_distance_adjmatrix_only_structure(phi_G, Adj_G, phi_H, Adj_H, la
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        problem.solve(solver=cp.SCS)
+        start_time = time.time()
+        while True:
+
+            problem.solve(solver=cp.SCS, max_iters = 100)
+            elapsed_time = time.time() - start_time
+            if elapsed_time > max_runtime:
+                print(f"Stopping due to time limit: {elapsed_time} seconds")
+                break
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
-        return problem.value , X.value, x_v_empty.value, x_empty_i.value
+        return problem.value , X.value, x_v_empty.value, x_empty_i.value # Return the minimum cost
 
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
-        return None
+        raise e
 
 
 
-def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional'):
+def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional', max_runtime=60):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
@@ -178,14 +193,21 @@ def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_di
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        problem.solve(solver=cp.SCS)
+        start_time = time.time()
+        while True:
+
+            problem.solve(solver=cp.SCS, max_iters = 100)
+            elapsed_time = time.time() - start_time
+            if elapsed_time > max_runtime:
+                print(f"Stopping due to time limit: {elapsed_time} seconds")
+                break
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
         return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
 
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
-        return None
+        raise e
 
 
 def isomorphism_distance_pyg(data_G, data_H, lam, euclide_metric = 'L2', mapping = 'fractional'):

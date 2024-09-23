@@ -59,14 +59,16 @@ def run_knn_experiment(dataset):
 
     spectral_kdists = []
     fractional_kdists = []
-
-    report = open(f"k-NN IMDB-MULTI2.txt", "w")
+    
+    # file_name = f'k-NN {dataset}.txt'
+    report = open("k-NN TRIANGLES0.txt", "w")
     i = 0
+    print('pass 0')
     for val_idx, val_data in enumerate(val_loader):
         
         val_adj = to_dense_adj(val_data.edge_index, max_num_nodes=val_data.x.size(0)).squeeze(0)
-
-
+        
+        print(f'passed val {val_idx}')
         for train_idx, train_data in enumerate(train_loader):
             train_adj = to_dense_adj(train_data.edge_index, max_num_nodes=train_data.x.size(0)).squeeze(0)
             
@@ -75,19 +77,19 @@ def run_knn_experiment(dataset):
             spectral_matrix[val_idx][train_idx][1] = train_data.y
 
             # compute Fractional Isomorphism Distance (S* in paper)
-            fractional_dist,  _, _, _, _ = isomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam)
+            fractional_dist,  _, _, _, _ = isomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam, max_runtime=300)
 
             fractional_dist_matrix[val_idx][train_idx][0] = fractional_dist
             fractional_dist_matrix[val_idx][train_idx][1] = train_data.y
 
             # compute Fractional Isomorphism Distance with edge contstrain (S in paper)
-            fractional_constrained_dist,  _, _, _, _ = isomorphism_distance_adjmatrix_constrained(train_data.x, train_adj, val_data.x, val_adj, lam)
+            fractional_constrained_dist,  _, _, _, _ = isomorphism_distance_adjmatrix_constrained(train_data.x, train_adj, val_data.x, val_adj, lam, max_runtime=300)
 
             fractional_constrained_matrix[val_idx][train_idx][0] = fractional_dist
             fractional_constrained_matrix[val_idx][train_idx][1] = train_data.y
 
             # compute Fractional Isomorphism Distance with only structure optimization
-            fractional_structure_only_dist, _, _, _ = isomorphism_distance_adjmatrix_only_structure(train_data.x, train_adj, val_data.x, val_adj, lam)
+            fractional_structure_only_dist, _, _, _ = isomorphism_distance_adjmatrix_only_structure(train_data.x, train_adj, val_data.x, val_adj, lam, max_runtime=300)
 
             fractional_structure_only_matrix[val_idx][train_idx][0] = fractional_dist
             fractional_structure_only_matrix[val_idx][train_idx][1] = train_data.y
@@ -143,14 +145,14 @@ def run_knn_experiment(dataset):
     report.write(f'k-NN classification result for :{dataset}\n')
     report.write(f'used lamda={lam}. Train-Val-Test split:{len(train_loader)}-{len(val_loader)}-{len(test_loader)}\n')
     for k in ks:
-        report.write('================================================')
+        report.write('================================================\n')
         report.write(f'with k={k}\n')
         report.write(f'spectral report:\n {classification_report(true_labels, spectral_preds[:,ik])}')
-        report.write('================================================================')
+        report.write('================================================================\n')
         report.write(f'fractional report:\n {classification_report(true_labels, fractional_preds[:,ik])}')
-        report.write('================================================================')
+        report.write('================================================================\n')
         report.write(f'fractional_constrained report:\n {classification_report(true_labels, fractional_constrained_preds[:,ik])}')
-        report.write('================================================================')
+        report.write('================================================================\n')
         report.write(f'fractional_structure_only report:\n {classification_report(true_labels, fractional_structure_only_preds[:,ik])}')
         # report.write('================================================================')
         # report.write(f'homomorphism report: {classification_report(true_labels, homomorphism_dist_preds[:,ik])}')

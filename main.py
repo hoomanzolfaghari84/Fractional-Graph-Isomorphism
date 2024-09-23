@@ -9,9 +9,9 @@ def run():
     # torch.manual_seed(42)  # For reproducibility
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    dataset = load_dataset('PROTEINS')
+    dataset = load_dataset('TRIANGLES')
     
-    run_knn_experiment_multithread(dataset)
+    run_knn_experiment(dataset)
 
 
 if __name__ == '__main__':
