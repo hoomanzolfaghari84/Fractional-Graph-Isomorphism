@@ -17,6 +17,8 @@ from sklearn.svm import SVC
 from grakel.kernels import WeisfeilerLehman, VertexHistogram
 import concurrent.futures
 
+
+
 from datasets import get_train_val_test_loaders
 from distance_functions import homomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix_constrained, isomorphism_distance_adjmatrix_only_structure, wasserstein_spectral_distance
 
@@ -39,20 +41,29 @@ def run_knn_experiment(dataset):
     train_loader, val_loader, test_loader = get_train_val_test_loaders(dataset)
 
     spectral_matrix = np.zeros((len(val_loader), len(train_loader),2))
-    fractional_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
 
+    fractional_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
     fractional_constrained_matrix = np.zeros((len(val_loader), len(train_loader),2))
-    fractional_structure_only_matrix = np.zeros((len(val_loader), len(train_loader),2))
+
+    integral_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
+    integral_constrained_matrix = np.zeros((len(val_loader), len(train_loader),2))
+
+    # fractional_structure_only_matrix = np.zeros((len(val_loader), len(train_loader),2))
     # homomorphism_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
 
     lam = 3
     ks = [1, 5, 10, 20]
 
     spectral_preds = np.zeros((len(val_loader), len(ks)))
-    fractional_preds = np.zeros((len(val_loader), len(ks)))
 
+    fractional_preds = np.zeros((len(val_loader), len(ks)))
     fractional_constrained_preds = np.zeros((len(val_loader), len(ks)))
-    fractional_structure_only_preds = np.zeros((len(val_loader), len(ks)))
+
+    integral_preds = np.zeros((len(val_loader), len(ks)))
+    integral_constrained_preds = np.zeros((len(val_loader), len(ks)))
+
+
+    # fractional_structure_only_preds = np.zeros((len(val_loader), len(ks)))
     # homomorphism_dist_preds = np.zeros((len(val_loader), len(ks)))
 
     true_labels = np.zeros(len(val_loader))
@@ -61,9 +72,9 @@ def run_knn_experiment(dataset):
     fractional_kdists = []
     
     # file_name = f'k-NN {dataset}.txt'
-    report = open("k-NN TRIANGLES0.txt", "w")
+    report = open("k-NN MUTAG INT.txt", "w")
     i = 0
-    print('pass 0')
+
     for val_idx, val_data in enumerate(val_loader):
         
         val_adj = to_dense_adj(val_data.edge_index, max_num_nodes=val_data.x.size(0)).squeeze(0)
@@ -85,14 +96,26 @@ def run_knn_experiment(dataset):
             # compute Fractional Isomorphism Distance with edge contstrain (S in paper)
             fractional_constrained_dist,  _, _, _, _ = isomorphism_distance_adjmatrix_constrained(train_data.x, train_adj, val_data.x, val_adj, lam, max_runtime=300)
 
-            fractional_constrained_matrix[val_idx][train_idx][0] = fractional_dist
+            fractional_constrained_matrix[val_idx][train_idx][0] = fractional_constrained_dist
             fractional_constrained_matrix[val_idx][train_idx][1] = train_data.y
 
-            # compute Fractional Isomorphism Distance with only structure optimization
-            fractional_structure_only_dist, _, _, _ = isomorphism_distance_adjmatrix_only_structure(train_data.x, train_adj, val_data.x, val_adj, lam, max_runtime=300)
+            # compute Integral Isomorphism Distance (S* in paper)
+            integral_dist,  _, _, _, _ = isomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam, mapping = 'integral')
 
-            fractional_structure_only_matrix[val_idx][train_idx][0] = fractional_dist
-            fractional_structure_only_matrix[val_idx][train_idx][1] = train_data.y
+            integral_dist_matrix[val_idx][train_idx][0] = integral_dist
+            integral_dist_matrix[val_idx][train_idx][1] = train_data.y
+
+            # compute Integral Isomorphism Distance with edge contstrain (S in paper)
+            integral_constrained_dist,  _, _, _, _ = isomorphism_distance_adjmatrix_constrained(train_data.x, train_adj, val_data.x, val_adj, lam, mapping = 'integral')
+
+            integral_constrained_matrix[val_idx][train_idx][0] = integral_constrained_dist
+            integral_constrained_matrix[val_idx][train_idx][1] = train_data.y
+
+            # compute Fractional Isomorphism Distance with only structure optimization
+            # fractional_structure_only_dist, _, _, _ = isomorphism_distance_adjmatrix_only_structure(train_data.x, train_adj, val_data.x, val_adj, lam, max_runtime=300)
+
+            # fractional_structure_only_matrix[val_idx][train_idx][0] = fractional_structure_only_dist
+            # fractional_structure_only_matrix[val_idx][train_idx][1] = train_data.y
         
             # compute Homomorphism Distance
             # lcost, _, _, _ = homomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam) 
@@ -104,12 +127,17 @@ def run_knn_experiment(dataset):
         for ik, k in enumerate(ks):
             spectral_predict, spectral_kdist = find_k_nearest_label(spectral_matrix[val_idx],k)
             frational_predict, fractional_kdist = find_k_nearest_label(fractional_dist_matrix[val_idx],k)
-            
-            spectral_preds[val_idx,ik] = spectral_predict
-            fractional_preds[val_idx,ik] = frational_predict
+            integral_predict, integral_kdist = find_k_nearest_label(integral_dist_matrix[val_idx],k)
 
+            spectral_preds[val_idx,ik] = spectral_predict
+
+            fractional_preds[val_idx,ik] = frational_predict
             fractional_constrained_preds[val_idx,ik] , _ = find_k_nearest_label(fractional_constrained_matrix[val_idx],k)
-            fractional_structure_only_preds[val_idx,ik] , _ = find_k_nearest_label(fractional_structure_only_matrix[val_idx],k)
+
+            integral_preds[val_idx,ik] = integral_predict
+            integral_constrained_preds[val_idx,ik] , _ = find_k_nearest_label(integral_constrained_matrix[val_idx],k)
+            
+            # fractional_structure_only_preds[val_idx,ik] , _ = find_k_nearest_label(fractional_structure_only_matrix[val_idx],k)
             # homomorphism_dist_preds[val_idx,ik] , _ = find_k_nearest_label(homomorphism_dist_matrix[val_idx],k)
 
 
@@ -129,12 +157,14 @@ def run_knn_experiment(dataset):
         print('================================================')
         print(f'with k={k}')
         print(f'spectral report:\n {classification_report(true_labels, spectral_preds[:,ik])}')
-        print('================================================================')
+        print('================================================================\n')
         print(f'fractional report:\n {classification_report(true_labels, fractional_preds[:,ik])}')
-        print('================================================================')
+        print('================================================================\n')
         print(f'fractional_constrained report:\n {classification_report(true_labels, fractional_constrained_preds[:,ik])}')
-        print('================================================================')
-        print(f'fractional_structure_only report:\n {classification_report(true_labels, fractional_structure_only_preds[:,ik])}')
+        print('================================================================\n')
+        print(f'integral report:\n {classification_report(true_labels, integral_preds[:,ik])}')
+        print('===============================================================\n')
+        print(f'integral_constrained report:\n {classification_report(true_labels, integral_constrained_preds[:,ik])}')
         # print('================================================================')
         # print(f'homomorphism report: {classification_report(true_labels, homomorphism_dist_preds[:,ik])}')
     print('################################')
@@ -153,7 +183,11 @@ def run_knn_experiment(dataset):
         report.write('================================================================\n')
         report.write(f'fractional_constrained report:\n {classification_report(true_labels, fractional_constrained_preds[:,ik])}')
         report.write('================================================================\n')
-        report.write(f'fractional_structure_only report:\n {classification_report(true_labels, fractional_structure_only_preds[:,ik])}')
+        report.write(f'integral report:\n {classification_report(true_labels, integral_preds[:,ik])}')
+        report.write('================================================================\n')
+        report.write(f'integral_constrained report:\n {classification_report(true_labels, integral_constrained_preds[:,ik])}')
+        # report.write('================================================================\n')
+        # report.write(f'fractional_structure_only report:\n {classification_report(true_labels, fractional_structure_only_preds[:,ik])}')
         # report.write('================================================================')
         # report.write(f'homomorphism report: {classification_report(true_labels, homomorphism_dist_preds[:,ik])}')
     report.write('################################\n')

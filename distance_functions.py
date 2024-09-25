@@ -40,6 +40,7 @@ class IsomorphismDistance:
 
     def __call__(self):
         pass
+
 def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional', max_runtime=60):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
@@ -65,9 +66,14 @@ def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, 
     A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
 
     # Set up cvxpy problem
-    X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
-    x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
-    x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
+    if mapping == 'integral':
+        X = cp.Variable((num_v_G, num_v_H), boolean=True)  # Fractional mapping (num_v_G, num_v_H)
+        x_v_empty = cp.Variable(num_v_G, boolean=True)  # Unmapped vertices in G (num_v_G,)
+        x_empty_i = cp.Variable(num_v_H, boolean=True)  # Unmapped vertices in H (num_v_H,)
+    else:
+        X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
+        x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
+        x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
 
     # Objective function: minimize the total cost
     cost = cp.sum(cp.multiply(C, X)) + lam * cp.sum(x_v_empty) + lam * cp.sum(x_empty_i)
@@ -84,14 +90,12 @@ def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, 
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        start_time = time.time()
-        while True:
 
-            problem.solve(solver=cp.SCS, max_iters = 100)
-            elapsed_time = time.time() - start_time
-            if elapsed_time > max_runtime:
-                print(f"Stopping due to time limit: {elapsed_time} seconds")
-                break
+        if mapping == 'integral':
+            problem.solve(solver=cp.ECOS_BB)
+        else:
+            problem.solve(solver=cp.SCS)
+
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
         return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
@@ -129,14 +133,9 @@ def isomorphism_distance_adjmatrix_only_structure(phi_G, Adj_G, phi_H, Adj_H, la
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        start_time = time.time()
-        while True:
 
-            problem.solve(solver=cp.SCS, max_iters = 100)
-            elapsed_time = time.time() - start_time
-            if elapsed_time > max_runtime:
-                print(f"Stopping due to time limit: {elapsed_time} seconds")
-                break
+        problem.solve()
+
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
         return problem.value , X.value, x_v_empty.value, x_empty_i.value # Return the minimum cost
@@ -172,13 +171,16 @@ def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_di
     A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
 
     # Set up cvxpy problem
-    X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
-    x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
-    x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
-
+    if mapping == 'integral':
+        X = cp.Variable((num_v_G, num_v_H), boolean=True)  # Fractional mapping (num_v_G, num_v_H)
+        x_v_empty = cp.Variable(num_v_G, boolean=True)  # Unmapped vertices in G (num_v_G,)
+        x_empty_i = cp.Variable(num_v_H, boolean=True)  # Unmapped vertices in H (num_v_H,)
+    else:
+        X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
+        x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
+        x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
     # Objective function: minimize the total cost
     cost = cp.sum(cp.multiply(C, X)) + lam * cp.sum(x_v_empty) + lam * cp.sum(x_empty_i) + cp.norm(A_G @ X - X @ A_H, "fro")
-    # cost = lambda_param * cp.sum(x_v_empty) + lambda_param * cp.sum(x_empty_i) + cp.norm(A_G @ X - X @ A_H, "fro")
 
     # Correct structural constraint
     constraints = [
@@ -189,18 +191,16 @@ def isomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_di
         x_empty_i + cp.sum(X, axis=0) == 1,  # For all i in V(H)
         # A_G @ X == X @ A_H  # Edge preservation
     ]
-
+    
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        start_time = time.time()
-        while True:
 
-            problem.solve(solver=cp.SCS, max_iters = 100)
-            elapsed_time = time.time() - start_time
-            if elapsed_time > max_runtime:
-                print(f"Stopping due to time limit: {elapsed_time} seconds")
-                break
+        if mapping == 'integral':
+            problem.solve(solver=cp.ECOS_BB)
+        else:
+            problem.solve(solver = cp.SCS)
+
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
         return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
