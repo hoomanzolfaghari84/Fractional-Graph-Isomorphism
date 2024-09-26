@@ -113,8 +113,8 @@ def get_train_val_test_loaders(dataset):
     dataset = dataset.shuffle()
 
     # Define train, validation, and test split sizes
-    train_size = int(0.5 * len(dataset))
-    val_size = int(0.3 * len(dataset))
+    train_size = int(0.15 * len(dataset))
+    val_size = int(0.05 * len(dataset))
     test_size = len(dataset) - train_size - val_size
 
     # Split the dataset

@@ -1,0 +1,139 @@
+
+Dataset: IMDB-MULTI(1500):
+====================      
+Number of graphs: 1500    
+Number of features: 1     
+Number of classes: 3
+
+Data(edge_index=[2, 42], y=[1], num_nodes=7, x=[7, 1])       
+is directed: False
+=============================================================
+Average number of nodes: 13.001333333333333
+Average number of edges: 131.87066666666666
+Average node features: tensor([1.])        
+Class frequency:{0: 500, 1: 500, 2: 500}   
+Number of graphs in the training set: 150
+Number of graphs in the validation set: 75
+Number of graphs in the test set: 1275
+C:\Users\Asus\Desktop\personal projects\py_environments\Lib\site-packages\sklearn\utils\validation.py:1339: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().
+  y = column_or_1d(y, warn=True)
+SVM Classification Accuracy using fractional rbf Kernel: 0.4266666666666667
+SVM Classification Report using fractional rbf Kernel:
+               precision    recall  f1-score   support
+
+           0       0.29      0.67      0.40        18
+           1       0.00      0.00      0.00        26
+           2       0.65      0.65      0.65        31
+
+    accuracy                           0.43        75
+   macro avg       0.31      0.44      0.35        75
+weighted avg       0.34      0.43      0.36        75
+
+C:\Users\Asus\Desktop\personal projects\py_environments\Lib\site-packages\sklearn\utils\validation.py:1339: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel  y = column_or_1d(y, warn=True)
+SVM Classification Accuracy using weisfeiler lehman Kernel: 0.4666666666666667
+SVM Classification Report using weisfeiler lehman Kernel:
+               precision    recall  f1-score   support
+
+           0       0.32      0.61      0.42        18
+           1       0.50      0.27      0.35        26
+           2       0.63      0.55      0.59        31
+
+    accuracy                           0.47        75
+   macro avg       0.48      0.48      0.45        75
+weighted avg       0.51      0.47      0.47        75
+
+(base) PS C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism> python .\main.py     
+
+Dataset: IMDB-MULTI(1500):
+====================
+Number of graphs: 1500
+Number of features: 1
+Number of classes: 3
+
+Data(edge_index=[2, 42], y=[1], num_nodes=7, x=[7, 1])
+is directed: False
+=============================================================
+Average number of nodes: 13.001333333333333
+Average number of edges: 131.87066666666666
+Average node features: tensor([1.])
+Class frequency:{0: 500, 1: 500, 2: 500}
+Number of graphs in the training set: 225
+Number of graphs in the validation set: 75
+Number of graphs in the test set: 1200
+Failure:interrupted
+Error occurred while solving LP: Solver 'SCS' failed. Try another solver, or solve with verbose=True for more information.
+Traceback (most recent call last):
+  File "C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism\main.py", line 20, in <module>
+    run()
+  File "C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism\main.py", line 15, in run
+    run_svm_experiment(dataset)
+  File "C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism\classic_methods_experiments.py", line 494, in run_svm_experiment
+    fractional_rbf_matrix_train[idx_1][idx_2] = fractional_rbf_kernel(G_1.x, G_2.x, adj_1, adj_2, lam, sigma)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism\classic_methods_experiments.py", line 456, in fractional_rbf_kernel
+    d,_,_,_,_ = isomorphism_distance_adjmatrix(phi_G, A_G, phi_H, A_H, lambda_param)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism\distance_functions.py", 
+    raise e
+  File "C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism\distance_functions.py", 
+line 202, in isomorphism_distance_adjmatrix
+    problem.solve(solver = cp.SCS)
+  File "C:\Users\Asus\Desktop\personal projects\py_environments\Lib\site-packages\cvxpy\problems\problem.py", line 503, in solve  
+    return solve_func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Desktop\personal projects\py_environments\Lib\site-packages\cvxpy\problems\problem.py", line 1090, in _solve    self.unpack_results(solution, solving_chain, inverse_data)
+  File "C:\Users\Asus\Desktop\personal projects\py_environments\Lib\site-packages\cvxpy\problems\problem.py", line 1415, in unpack_results
+    raise error.SolverError(
+cvxpy.error.SolverError: Solver 'SCS' failed. Try another solver, or solve with verbose=True for more information.
+(base) PS C:\Users\Asus\Desktop\university\Sharif\research\graph learning\code\Fractional-Graph-Isomorphism> python .\main.py     
+
+Dataset: IMDB-MULTI(1500):
+====================
+Number of graphs: 1500
+Number of features: 1
+Number of classes: 3
+
+Data(edge_index=[2, 42], y=[1], num_nodes=7, x=[7, 1])
+is directed: False
+=============================================================
+Average number of nodes: 13.001333333333333
+Average number of edges: 131.87066666666666
+Average node features: tensor([1.])
+Class frequency:{0: 500, 1: 500, 2: 500}
+Number of graphs in the training set: 225
+Number of graphs in the validation set: 75
+Number of graphs in the test set: 1200
+C:\Users\Asus\Desktop\personal projects\py_environments\Lib\site-packages\sklearn\utils\validation.py:1339: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().
+  y = column_or_1d(y, warn=True)
+SVM Classification Accuracy using fractional rbf Kernel: 0.41333333333333333
+SVM Classification Report using fractional rbf Kernel:
+               precision    recall  f1-score   support
+
+           0       0.33      0.55      0.42        20
+           1       0.47      0.56      0.51        27
+           2       0.50      0.18      0.26        28
+
+    accuracy                           0.41        75
+   macro avg       0.43      0.43      0.40        75
+weighted avg       0.44      0.41      0.39        75
+
+C:\Users\Asus\Desktop\personal projects\py_environments\Lib\site-packages\sklearn\utils\validation.py:1339: DataConversionWarning: A column-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().
+  y = column_or_1d(y, warn=True)
+SVM Classification Accuracy using weisfeiler lehman Kernel: 0.32
+SVM Classification Report using weisfeiler lehman Kernel:
+-vector y was passed when a 1d array was expected. Please change the shape of y to (n_samples, ), for example using ravel().
+  y = column_or_1d(y, warn=True)
+SVM Classification Accuracy using weisfeiler lehman Kernel: 0.32
+SVM Classification Report using weisfeiler lehman Kernel:
+SVM Classification Accuracy using weisfeiler lehman Kernel: 0.32
+SVM Classification Report using weisfeiler lehman Kernel:
+SVM Classification Report using weisfeiler lehman Kernel:
+               precision    recall  f1-score   support
+
+           0       0.24      0.35      0.29        20
+           1       0.40      0.37      0.38        27
+           2       0.33      0.25      0.29        28
+
+    accuracy                           0.32        75
+   macro avg       0.32      0.32      0.32        75
+weighted avg       0.33      0.32      0.32        75

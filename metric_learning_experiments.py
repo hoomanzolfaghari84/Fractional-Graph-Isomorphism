@@ -30,26 +30,24 @@ class MLPGraphModel(nn.Module):
         self.conv2 = GINConv(nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, int(hidden_dim))))
         
         self.Linear1 = nn.Linear(hidden_dim, hidden_dim)
-        self.Linear3 = nn.Linear(hidden_dim, output_dim)
+        self.Linear2 = nn.Linear(hidden_dim, output_dim)
 
     def forward(self,x, edge_index):
         x = self.conv1(x, edge_index)
         x = torch.relu(x)
 
+        x = self.conv2(x, edge_index)
+        x = torch.relu(x)
+
         x = self.Linear1(x)
         x = torch.relu(x)
 
+
         x = self.Linear2(x)
-
-        
-
-        x = torch.relu(x)
-
-        x = self.Linear3(x)
 
         return x
 
-class GINMLPModel(nn.Module): 
+class GINMLPModel(nn.Module):
     def __init__(self,input_dim,hidden_dim, num_classes):
         super(GINMLPModel, self).__init__()
         self.conv1 = GINConv(nn.Sequential(nn.Linear(input_dim, int(hidden_dim)), nn.ReLU(), nn.Linear(int(hidden_dim), hidden_dim)))
@@ -73,7 +71,8 @@ class GINMLPModel(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         
-        return F.log_softmax(x, dim=-1)
+        # return F.log_softmax(x, dim=-1)
+        return x
 
 
 class GINGraphModel(nn.Module):
@@ -225,14 +224,14 @@ def run_triplet_experiment(dataset, device='cpu'):
 
     input_dim = dataset.num_node_features  # Number of input features per node
     hidden_dim = 20  # Hidden dimension size
-    output_dim = 3  # Output dimension size
+    output_dim = 7  # Output dimension size
     lambda_param = torch.tensor(3.0, dtype=torch.float32, requires_grad=True)
-    margin = 8
+    margin = 1
     save_path = '/models/best_model_triplet_GIN.pth'
     # Initialize the GIN model and optimizer
-    model = GINGraphModel(input_dim, hidden_dim, output_dim).to(device)
+    model = MLPGraphModel(input_dim, hidden_dim, output_dim).to(device)
     # model = GATGraphModel(input_dim=dataset.num_node_features, hidden_dim=20, output_dim=4, heads=8, dropout=0.6)
-
+    # mlpmodel = GINMLPModel(input_dim=dataset.num_node_features)
 
     optimizer = optim.Adam([
         {'params': model.parameters()},  # Model parameters
@@ -261,3 +260,41 @@ def run_triplet_experiment(dataset, device='cpu'):
             best_k = k
             torch.save(model.state_dict(), save_path)
             print(f'Model saved with validation accuracy: {best_acc:.4f} and k:{k}')
+
+def euclid_triplet(dataset, train_loader, val_loader, device = 'cpu'):
+    pass
+    # input_dim = dataset.num_node_features  # Number of input features per node
+    # hidden_dim = 20  # Hidden dimension size
+    # output_dim = 7  # Output dimension size
+    # # lambda_param = torch.tensor(3.0, dtype=torch.float32, requires_grad=True)
+    # margin = 1
+    # save_path = '/models/best_model_triplet_Euclid.pth'
+    # # Initialize the GIN model and optimizer
+    # model = MLPGraphModel(input_dim, hidden_dim, output_dim).to(device)
+    # # model = GATGraphModel(input_dim=dataset.num_node_features, hidden_dim=20, output_dim=4, heads=8, dropout=0.6)
+    # # mlpmodel = GINMLPModel(input_dim=dataset.num_node_features)
+
+    # optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=2, verbose=True)
+
+    # # Training the model
+    # best_acc = 0
+    
+    # patience = 4
+    # for epoch in range(5):  # Example with 5 epochs
+        # print(f"Epoch {epoch + 1}/5")
+        # train_triplet_model(model, triplet_loader, optimizer, lambda_param, margin)
+
+        # acc, k = validate_triplet_model(model,train_loader,val_loader,lambda_param)
+
+        # scheduler.step(acc)
+
+        # if acc <= best_acc:
+        #     patience -= 1
+        #     if patience ==0 : break
+        # else:
+        #     best_acc = acc
+        #     best_k = k
+        #     torch.save(model.state_dict(), save_path)
+        #     print(f'Model saved with validation accuracy: {best_acc:.4f} and k:{k}')

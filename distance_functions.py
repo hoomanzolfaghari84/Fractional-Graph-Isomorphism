@@ -134,7 +134,7 @@ def isomorphism_distance_adjmatrix_only_structure(phi_G, Adj_G, phi_H, Adj_H, la
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
 
-        problem.solve()
+        problem.solve(solver=cp.SCS)
 
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
@@ -262,7 +262,7 @@ def homomorphism_distance_adjmatrix(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_d
     try:
         # Solve the LP problem
         problem = cp.Problem(cp.Minimize(cost), constraints)
-        problem.solve()
+        problem.solve(solver = cp.SCS)
 
         # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
         return problem.value , X.value, x_v_empty.value, C
