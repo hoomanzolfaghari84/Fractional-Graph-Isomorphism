@@ -41,7 +41,25 @@ class IsomorphismDistance:
     def __call__(self):
         pass
 
-def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2', mapping = 'fractional', max_runtime=60):
+def add_row_column_of_ones(matrix):
+    # Get the shape of the original matrix
+    original_shape = matrix.shape
+    
+    # Create a row of ones with the same number of columns as the original matrix
+    ones_row = np.ones((1, original_shape[1]))
+    
+    # Create a column of ones with the same number of rows as the original matrix
+    ones_col = np.ones((original_shape[0] + 1, 1))
+    
+    # Add the row of ones to the bottom of the original matrix
+    matrix_with_ones_row = np.vstack([matrix, ones_row])
+    
+    # Add the column of ones to the right of the new matrix
+    matrix_with_ones = np.hstack([matrix_with_ones_row, ones_col])
+    
+    return matrix_with_ones
+
+def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance='L2', mapping='fractional', max_runtime=60):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
@@ -59,32 +77,48 @@ def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, 
         elif euclidean_distance == 'wasserstein':
             C = compute_wasserstein_distance_matrix(phi_G, phi_H)
         else:
-            raise Exception('wrong euclid metric')
+            raise Exception('Invalid Euclidean metric')
 
     # Get adjacency matrices and print their shapes
     A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
     A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
 
-    # Set up cvxpy problem
+    # Set up cvxpy vars
     if mapping == 'integral':
-        X = cp.Variable((num_v_G, num_v_H), boolean=True)  # Fractional mapping (num_v_G, num_v_H)
-        x_v_empty = cp.Variable(num_v_G, boolean=True)  # Unmapped vertices in G (num_v_G,)
-        x_empty_i = cp.Variable(num_v_H, boolean=True)  # Unmapped vertices in H (num_v_H,)
+        X = cp.Variable((num_v_G, num_v_H), boolean=True)  # Integral mapping (num_v_G, num_v_H)
+        x_v_empty = cp.Variable((num_v_G, 1), boolean=True)  # Unmapped vertices in G (num_v_G, 1)
+        x_empty_i = cp.Variable((1, num_v_H), boolean=True)  # Unmapped vertices in H (1, num_v_H)
     else:
         X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
-        x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
-        x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
+        x_v_empty = cp.Variable((num_v_G, 1), nonneg=True)  # Unmapped vertices in G (num_v_G, 1)
+        x_empty_i = cp.Variable((1, num_v_H), nonneg=True)  # Unmapped vertices in H (1, num_v_H)
 
     # Objective function: minimize the total cost
     cost = cp.sum(cp.multiply(C, X)) + lam * cp.sum(x_v_empty) + lam * cp.sum(x_empty_i)
 
+
+    # # Extend X to include empty variables
+    # X_augmented_1 = cp.hstack([X, cp.reshape(x_v_empty, (num_v_G, 1))])  # Add x_{v,empty} as a column to X
+    # X_augmented_2 = cp.vstack([X, cp.reshape(x_empty_i, (1, num_v_H))])  # Add x_{empty,i} as a row to X
+     
+    # Extend X to include empty variables
+    X_augmented = cp.vstack([
+        cp.hstack([X, cp.reshape(x_v_empty, (num_v_G, 1))]),  # Add x_{v,empty} as a column to X
+        cp.hstack([x_empty_i, cp.Constant([[0]])])  # Add x_{empty,i} as a row and the final value as one
+    ])
+
+    A_H_aug = add_row_column_of_ones(A_H)
+    A_G_aug = add_row_column_of_ones(A_G)
+
+    # Constraints
     constraints = [
         X <= 1,  # Ensure the fractional mapping is between 0 and 1
         x_v_empty <= 1,  # Ensure unmapped vertices in G are between 0 and 1
         x_empty_i <= 1,  # Ensure unmapped vertices in H are between 0 and 1
-        x_v_empty + cp.sum(X, axis=1) == 1,  # For all v in V(G)
-        x_empty_i + cp.sum(X, axis=0) == 1,  # For all i in V(H)
-        A_G @ X == X @ A_H  # Edge preservation
+        x_v_empty[:,0] + cp.sum(X, axis=1) == 1,  # For all v in V(G)
+        x_empty_i[0] + cp.sum(X, axis=0) == 1,  # For all i in V(H)
+        A_G_aug @ X_augmented == X_augmented @ A_H_aug,
+        # A_G_aug @ X_augmented_2 == X_augmented_2 @ A_H
     ]
 
     try:
@@ -92,18 +126,17 @@ def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, 
         problem = cp.Problem(cp.Minimize(cost), constraints)
 
         if mapping == 'integral':
-            problem.solve(solver=cp.ECOS_BB)
+            problem.solve(solver=cp.ECOS_BB, verbose=True)
         else:
             problem.solve(solver=cp.SCS)
 
-
-        # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
-        return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
+        # Return the minimum cost and mapping
+        return problem.value, X.value, x_v_empty.value, x_empty_i.value, C
 
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
         raise e
-
+    
 def isomorphism_distance_adjmatrix_only_structure(phi_G, Adj_G, phi_H, Adj_H, lam, mapping = 'fractional', max_runtime=60):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
