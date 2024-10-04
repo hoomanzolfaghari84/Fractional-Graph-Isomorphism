@@ -21,6 +21,150 @@ import cvxpy as cp
 
 # ----------------------------------------------------------------
 # ----------------------------------------------------------------
+# subgraph isomorphism distance
+#
+
+def subgraph_isomorphism_distance_no_loops(phi_G, Adj_G, phi_H, Adj_H, lam, mapping='fractional'):
+    num_v_G = phi_G.size(0)  # Number of vertices in graph G
+    num_v_H = phi_H.size(0)  # Number of vertices in graph H
+
+    C = torch.cdist(phi_G, phi_H, p=2).detach().cpu().numpy()
+
+    C = np.pad(C, ((0, 0), (0, 1)), mode='constant', constant_values=lam)
+
+    # Get adjacency matrices and print their shapes
+    A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
+    A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
+
+    A_H_aug = np.pad(A_H, ((0, 1), (0, 1)), mode='constant', constant_values=1)
+
+    if mapping == 'integral':
+        X = cp.Variable((num_v_G, num_v_H + 1), boolean=True)
+    else:
+        X = cp.Variable((num_v_G, num_v_H + 1), nonneg=True)
+
+    objective = cp.sum(cp.multiply(C, X)) 
+
+    constraints = [
+        X <= 1,
+        cp.sum(X, axis=1) == 1,
+    ]
+
+    constraints += [
+        cp.sum(X[:, i]) <= 1 for i in range(num_v_H)  # For all columns except the last
+    ]
+
+    # Constraint 2: For each edge uv in G and ij not in E(H^+), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G[u, v] == 1:  # If uv is an edge in G
+                for i in range(num_v_H + 1):
+                    for j in range(num_v_H + 1):
+                        if A_H_aug[i, j] == 0:  # If ij is NOT an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
+
+    # Constraint 3: For uv not in G and ij in E(H), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G[u, v] == 0:  # If uv is NOT an edge in G
+                for i in range(num_v_H):
+                    for j in range(num_v_H):
+                        if A_H_aug[i, j] == 1:  # If ij is an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
+
+
+
+    try:
+        # Solve the LP problem
+        problem = cp.Problem(cp.Minimize(objective), constraints)
+
+        if mapping == 'integral':
+            problem.solve(solver=cp.GLPK_MI)#, verbose=True)
+        else:
+            problem.solve(solver=cp.SCS)
+
+        # Return the minimum cost and mapping
+        return problem.value, X.value, C
+
+    except Exception as e:
+        print(f"Error occurred while solving LP: {e}")
+        raise e
+
+def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam, mapping='fractional'):
+    num_v_G = phi_G.size(0)  # Number of vertices in graph G
+    num_v_H = phi_H.size(0)  # Number of vertices in graph H
+
+    C = torch.cdist(phi_G, phi_H, p=2).detach().cpu().numpy()
+
+    C = np.pad(C, ((0, 1), (0, 1)), mode='constant', constant_values=lam)  # Add a row and column of constants
+
+    C[num_v_G, num_v_H] = 0
+
+    # Get adjacency matrices and print their shapes
+    A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
+    A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
+
+    A_G_aug = np.pad(A_G, ((0, 1), (0, 1)), mode='constant', constant_values=1)
+    A_H_aug = np.pad(A_H, ((0, 1), (0, 1)), mode='constant', constant_values=1)
+
+    if mapping == 'integral':
+        X = cp.Variable((num_v_G + 1, num_v_H + 1), boolean=True)
+    else:
+        X = cp.Variable((num_v_G + 1, num_v_H + 1), nonneg=True)
+
+    objective = cp.sum(cp.multiply(C, X)) 
+
+    constraints = [
+        X <= 1,
+        X[num_v_G, num_v_H] == 1
+    ]
+
+    constraints += [
+        cp.sum(X[v, :]) == 1 for v in range(num_v_G)  # For all rows except the last
+    ]
+
+    constraints += [
+        cp.sum(X[:, i]) == 1 for i in range(num_v_H)  # For all columns except the last
+    ]
+
+    # Constraint 2: For each edge uv in G and ij not in E(H^+), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G_aug[u, v] == 1:  # If uv is an edge in G
+                for i in range(num_v_H + 1):
+                    for j in range(num_v_H + 1):
+                        if A_H_aug[i, j] == 0:  # If ij is NOT an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
+
+    # Constraint 3: For uv not in G and ij in E(H), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G_aug[u, v] == 0:  # If uv is NOT an edge in G
+                for i in range(num_v_H):
+                    for j in range(num_v_H):
+                        if A_H_aug[i, j] == 1:  # If ij is an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
+
+
+
+    try:
+        # Solve the LP problem
+        problem = cp.Problem(cp.Minimize(objective), constraints)
+
+        if mapping == 'integral':
+            problem.solve(solver=cp.GLPK_MI)#, verbose=True)
+        else:
+            problem.solve(solver=cp.SCS)
+
+        # Return the minimum cost and mapping
+        return problem.value, X.value, C
+
+    except Exception as e:
+        print(f"Error occurred while solving LP: {e}")
+        raise e
+
+# ----------------------------------------------------------------
+# ----------------------------------------------------------------
 # Isomorphism Distance
 #
 
@@ -107,8 +251,13 @@ def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, 
         cp.hstack([x_empty_i, cp.Constant([[0]])])  # Add x_{empty,i} as a row and the final value as one
     ])
 
+    print(f'X_augmented:\n{X_augmented}')
+
     A_H_aug = add_row_column_of_ones(A_H)
     A_G_aug = add_row_column_of_ones(A_G)
+
+    print(f'A_H_aug:\n{A_H_aug}')
+    print(f'A_G_aug:\n{A_G_aug}')
 
     # Constraints
     constraints = [
@@ -126,7 +275,7 @@ def isomorphism_distance_adjmatrix_constrained(phi_G, Adj_G, phi_H, Adj_H, lam, 
         problem = cp.Problem(cp.Minimize(cost), constraints)
 
         if mapping == 'integral':
-            problem.solve(solver=cp.ECOS_BB, verbose=True)
+            problem.solve(solver=cp.GLPK_MI, verbose=True)
         else:
             problem.solve(solver=cp.SCS)
 

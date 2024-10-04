@@ -20,7 +20,7 @@ import concurrent.futures
 
 
 from datasets import get_train_val_test_loaders
-from distance_functions import homomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix_constrained, isomorphism_distance_adjmatrix_only_structure, wasserstein_spectral_distance
+from distance_functions import homomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix_constrained, isomorphism_distance_adjmatrix_only_structure, subgraph_isomorphism_distance, wasserstein_spectral_distance
 # from main import dist_new
 
 
@@ -124,7 +124,7 @@ def run_knn_experiment(dataset):
 
     spectral_preds = np.zeros((len(val_loader), len(ks)))
 
-    # fractional_preds = np.zeros((len(val_loader), len(ks)))
+    fractional_preds = np.zeros((len(val_loader), len(ks)))
     fractional_constrained_preds = np.zeros((len(val_loader), len(ks)))
 
     # integral_preds = np.zeros((len(val_loader), len(ks)))
@@ -155,14 +155,14 @@ def run_knn_experiment(dataset):
             spectral_matrix[val_idx][train_idx][0] = wasserstein_spectral_distance(val_data,train_data)
             spectral_matrix[val_idx][train_idx][1] = train_data.y
 
-            # # compute Fractional Isomorphism Distance (S* in paper)
-            # fractional_dist,  _, _, _, _ = isomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam)
+            # compute Fractional Isomorphism Distance (S* in paper)
+            fractional_dist,  _, _, _, _ = isomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam)
 
-            # fractional_dist_matrix[val_idx][train_idx][0] = fractional_dist
-            # fractional_dist_matrix[val_idx][train_idx][1] = train_data.y
+            fractional_dist_matrix[val_idx][train_idx][0] = fractional_dist
+            fractional_dist_matrix[val_idx][train_idx][1] = train_data.y
 
             # compute Fractional Isomorphism Distance with edge contstrain (S in paper)
-            fractional_constrained_dist,  _, _, _, _ = dist_new(train_data.x, train_adj, val_data.x, val_adj, lam)
+            fractional_constrained_dist,  _, _ = subgraph_isomorphism_distance(train_data.x, train_adj, val_data.x, val_adj, lam, mapping = 'fractional')
 
             fractional_constrained_matrix[val_idx][train_idx][0] = fractional_constrained_dist
             fractional_constrained_matrix[val_idx][train_idx][1] = train_data.y
@@ -194,13 +194,13 @@ def run_knn_experiment(dataset):
 
         for ik, k in enumerate(ks):
             spectral_predict, spectral_kdist = find_k_nearest_label(spectral_matrix[val_idx],k)
-            # frational_predict, fractional_kdist = find_k_nearest_label(fractional_dist_matrix[val_idx],k)
+            frational_predict, fractional_kdist = find_k_nearest_label(fractional_dist_matrix[val_idx],k)
             # integral_predict, integral_kdist = find_k_nearest_label(integral_dist_matrix[val_idx],k)
 
             spectral_preds[val_idx,ik] = spectral_predict
 
-            # fractional_preds[val_idx,ik] = frational_predict
-            fractional_constrained_preds[val_idx,ik] , _ = find_k_nearest_label(fractional_constrained_matrix[val_idx],k)
+            fractional_preds[val_idx,ik] = frational_predict
+            fractional_constrained_preds[val_idx, ik] , _ = find_k_nearest_label(fractional_constrained_matrix[val_idx],k)
 
             # integral_preds[val_idx,ik] = integral_predict
             # integral_constrained_preds[val_idx,ik] , _ = find_k_nearest_label(integral_constrained_matrix[val_idx],k)
@@ -225,8 +225,8 @@ def run_knn_experiment(dataset):
         print('================================================')
         print(f'with k={k}')
         print(f'spectral report:\n {classification_report(true_labels, spectral_preds[:,ik])}')
-        # print('================================================================\n')
-        # print(f'fractional report:\n {classification_report(true_labels, fractional_preds[:,ik])}')
+        print('================================================================\n')
+        print(f'fractional report:\n {classification_report(true_labels, fractional_preds[:,ik])}')
         print('================================================================\n')
         print(f'fractional_constrained report:\n {classification_report(true_labels, fractional_constrained_preds[:,ik])}')
         print('================================================================\n')
