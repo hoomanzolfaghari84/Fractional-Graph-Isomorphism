@@ -19,75 +19,8 @@ import concurrent.futures
 
 
 
-from datasets import get_train_val_test_loaders
-from distance_functions import homomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix_constrained, isomorphism_distance_adjmatrix_only_structure, subgraph_isomorphism_distance, wasserstein_spectral_distance
-# from main import dist_new
-
-
-def dist_new(phi_1, G1, phi_2, G2, lam):
-    # Number of vertices
-    n1 = G1.shape[0]
-    n2 = G2.shape[0]
-
-    # Compute the cost matrix C
-    C = torch.cdist(phi_1, phi_2, p=2).detach().cpu().numpy()
-
-    # Convert adjacency matrices to numpy
-    G1 = G1.detach().cpu().numpy()  # (num_v_G, num_v_G)
-    G2 = G2.detach().cpu().numpy()  # (num_v_H, num_v_H)
-
-    # Binary variables for selecting vertices
-    x = cp.Variable(n1, boolean=True)  # Vertices from G1
-    y = cp.Variable(n2, boolean=True)  # Vertices from G2
-
-    # Binary variables for matching vertices
-    z = cp.Variable((n1, n2), boolean=True)  # Matching variables
-
-    # Objective function: Minimize the specified expression
-    objective = cp.Minimize(cp.sum(cp.multiply(C, z)) + cp.sum(cp.multiply(lam, (1 - z))))
-
-    # Constraints
-    constraints = []
-
-    # Induced subgraph constraints
-    for i in range(n1):
-        for k in range(n1):
-            if G1[i, k] == 1:  # If there's an edge in G1
-                for j in range(n2):
-                    constraints.append(z[i, j] <= x[i])
-                    constraints.append(z[i, j] <= y[j])
-
-    for j in range(n2):
-        for m in range(n2):
-            if G2[j, m] == 1:  # If there's an edge in G2
-                for i in range(n1):
-                    constraints.append(z[i, j] <= x[i])
-                    constraints.append(z[i, j] <= y[j])
-
-    # Matching constraints
-    for i in range(n1):
-        constraints.append(cp.sum(z[i, :]) <= x[i])  # Each vertex in G1 can be matched at most once
-
-    for j in range(n2):
-        constraints.append(cp.sum(z[:, j]) <= y[j])  # Each vertex in G2 can be matched at most once
-
-    # constraints.append(x <=1)
-    # constraints.append( y <=1)
-    # constraints.append(z <=1)
-    # Formulate the problem
-    problem = cp.Problem(objective, constraints)
-
-    # Solve the problem
-    problem.solve(solver=cp.GLPK_MI)
-
-    # # Output the results
-    # print("Optimal value of the objective function:", problem.value)
-    # print("Selected vertices from G1 (x):", x.value)
-    # print("Selected vertices from G2 (y):", y.value)
-    # print("Matching (z):")
-    # print(z.value)
-
-    return problem.value, x.value, y.value, z.value, C
+from datasets import dataset_class_distribution, get_m_shot_loaders, get_train_val_test_loaders
+from distance_functions import graph_convex_isomorphism, isomorphism_distance_adjmatrix, isomorphism_distance_adjmatrix_constrained, isomorphism_distance_adjmatrix_only_structure, subgraph_isomorphism_distance, wasserstein_spectral_distance
 
 
 # ----------------------------------------------------------------
@@ -95,8 +28,15 @@ def dist_new(phi_1, G1, phi_2, G2, lam):
 # k-NN experiment
 #
 
+# class distance_matrix():
+#     def __init__(self,dist_function,num_train,num_val):
+#         self.dist_function = dist_function
+#         self.dist_matrix = np.zeros((num_val, num_train,2))
+
+
 def find_k_nearest_label(dists, k=1):
     # Get the indices of the k smallest distances
+    
     indices = np.argpartition(dists[:, 0], k)[:k]
 
     # Extract the labels of the k-nearest neighbors and cast to integers
@@ -105,42 +45,45 @@ def find_k_nearest_label(dists, k=1):
     # Return the label with the highest frequency
     return np.bincount(knn_labels).argmax(), dists[indices,0].mean()
 
-def run_knn_experiment(dataset):
-    train_loader, val_loader, test_loader = get_train_val_test_loaders(dataset)
+def run_knn_experiment(dataset, filename='report'):
+    # train_loader, val_loader, test_loader = get_train_val_test_loaders(dataset)
+    train_loader, val_loader, test_loader = get_m_shot_loaders(dataset, m = 5 , val_split=0.0005)
+
+    print("train dist\n")
+    dataset_class_distribution(train_loader.dataset)
+    print("val dist\n")
+    dataset_class_distribution(val_loader.dataset)
+    
 
     spectral_matrix = np.zeros((len(val_loader), len(train_loader),2))
 
-    fractional_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
-    fractional_constrained_matrix = np.zeros((len(val_loader), len(train_loader),2))
+    convex_isomorphism_matrix = np.zeros((len(val_loader), len(train_loader),2))
 
-    integral_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
-    integral_constrained_matrix = np.zeros((len(val_loader), len(train_loader),2))
+    subgraph_distance_matrix = np.zeros((len(val_loader), len(train_loader),2))
+    subgraph_distance_matrix_frac = np.zeros((len(val_loader), len(train_loader),2))
 
-    fractional_structure_only_matrix = np.zeros((len(val_loader), len(train_loader),2))
-    homomorphism_dist_matrix = np.zeros((len(val_loader), len(train_loader),2))
+    subgraph_distance_matrix_recursive = np.zeros((len(val_loader), len(train_loader),2))
+    subgraph_distance_matrix_frac_recursive = np.zeros((len(val_loader), len(train_loader),2))
+
 
     lam = 2
-    ks = [1, 5, 10, 20]
+    ks = [1, 5, 10, 20, 100]
 
     spectral_preds = np.zeros((len(val_loader), len(ks)))
 
-    fractional_preds = np.zeros((len(val_loader), len(ks)))
-    fractional_constrained_preds = np.zeros((len(val_loader), len(ks)))
+    convex_isomorphism_preds = np.zeros((len(val_loader), len(ks)))
 
-    # integral_preds = np.zeros((len(val_loader), len(ks)))
-    # integral_constrained_preds = np.zeros((len(val_loader), len(ks)))
+    subgraph_dist_preds = np.zeros((len(val_loader), len(ks)))
+    subgraph_dist_preds_frac = np.zeros((len(val_loader), len(ks)))
 
-
-    # fractional_structure_only_preds = np.zeros((len(val_loader), len(ks)))
-    # homomorphism_dist_preds = np.zeros((len(val_loader), len(ks)))
+    subgraph_dist_preds_recursive = np.zeros((len(val_loader), len(ks)))
+    subgraph_dist_preds_frac_recursive = np.zeros((len(val_loader), len(ks)))
 
     true_labels = np.zeros(len(val_loader))
 
-    spectral_kdists = []
-    fractional_kdists = []
     
     # file_name = f'k-NN {dataset}.txt'
-    report = open("SUB.txt", "w")
+    report = open(f"{filename}.txt", "w")
     i = 0
 
     for val_idx, val_data in enumerate(val_loader):
@@ -148,27 +91,37 @@ def run_knn_experiment(dataset):
         val_adj = to_dense_adj(val_data.edge_index, max_num_nodes=val_data.x.size(0)).squeeze(0)
         
         print(f'passed val {val_idx}')
+        print(f'data val: {val_data}')
         for train_idx, train_data in enumerate(train_loader):
+            print(f'passed train {train_idx}')
             train_adj = to_dense_adj(train_data.edge_index, max_num_nodes=train_data.x.size(0)).squeeze(0)
             
             # compute wasserstein spectral distance (from few-shot paper)
             spectral_matrix[val_idx][train_idx][0] = wasserstein_spectral_distance(val_data,train_data)
             spectral_matrix[val_idx][train_idx][1] = train_data.y
-
+            # print(f'passed val spectral {val_idx}')
             # compute Fractional Isomorphism Distance (S* in paper)
-            fractional_dist,  _, _, _, _ = isomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam)
+            fractional_dist,  _, _, _, _ = graph_convex_isomorphism(train_data.x, train_adj, val_data.x, val_adj, lam)
 
-            fractional_dist_matrix[val_idx][train_idx][0] = fractional_dist
-            fractional_dist_matrix[val_idx][train_idx][1] = train_data.y
+            convex_isomorphism_matrix[val_idx][train_idx][0] = fractional_dist
+            convex_isomorphism_matrix[val_idx][train_idx][1] = train_data.y
 
+            # print(f'passed val S* {val_idx}')
             # compute Fractional Isomorphism Distance with edge contstrain (S in paper)
-            fractional_constrained_dist,  _, _ = subgraph_isomorphism_distance(train_data.x, train_adj, val_data.x, val_adj, lam, mapping = 'fractional')
+            # subgraph_isomorphism_dist,_,_ = 0.0 , None, None #subgraph_isomorphism_distance(train_data.x, train_adj, val_data.x, val_adj, lam, mapping='integral')
+            subgraph_isomorphism_dist,_,_ = subgraph_isomorphism_distance(train_data.x, train_adj, val_data.x, val_adj, lam, mapping='integral')
 
-            fractional_constrained_matrix[val_idx][train_idx][0] = fractional_constrained_dist
-            fractional_constrained_matrix[val_idx][train_idx][1] = train_data.y
+            subgraph_distance_matrix[val_idx][train_idx][0] = subgraph_isomorphism_dist
+            subgraph_distance_matrix[val_idx][train_idx][1] = train_data.y
+            print("started sub frac")
+            subgraph_isomorphism_dist_frac,_,_ = subgraph_isomorphism_distance(train_data.x, train_adj, val_data.x, val_adj, lam, mapping='fractional')
 
-            # # compute Integral Isomorphism Distance (S* in paper)
-            # integral_dist,  _, _, _, _ = isomorphism_distance_adjmatrix(train_data.x, train_adj, val_data.x, val_adj, lam, mapping = 'integral')
+            subgraph_distance_matrix_frac[val_idx][train_idx][0] = subgraph_isomorphism_dist_frac
+            subgraph_distance_matrix_frac[val_idx][train_idx][1] = train_data.y
+
+            # print(f'passed val S {val_idx}')
+            # compute Integral Isomorphism Distance (S* in paper)
+            # integral_dist = recursive_subgraph_isomorphism_distance_weighted(train_data.x, train_adj, val_data.x, val_adj, lam, mapping = 'integral')
 
             # integral_dist_matrix[val_idx][train_idx][0] = integral_dist
             # integral_dist_matrix[val_idx][train_idx][1] = train_data.y
@@ -193,29 +146,17 @@ def run_knn_experiment(dataset):
             # homomorphism_dist_matrix[val_idx][train_idx][1] = train_data.y
 
         for ik, k in enumerate(ks):
-            spectral_predict, spectral_kdist = find_k_nearest_label(spectral_matrix[val_idx],k)
-            frational_predict, fractional_kdist = find_k_nearest_label(fractional_dist_matrix[val_idx],k)
-            # integral_predict, integral_kdist = find_k_nearest_label(integral_dist_matrix[val_idx],k)
-
-            spectral_preds[val_idx,ik] = spectral_predict
-
-            fractional_preds[val_idx,ik] = frational_predict
-            fractional_constrained_preds[val_idx, ik] , _ = find_k_nearest_label(fractional_constrained_matrix[val_idx],k)
-
-            # integral_preds[val_idx,ik] = integral_predict
-            # integral_constrained_preds[val_idx,ik] , _ = find_k_nearest_label(integral_constrained_matrix[val_idx],k)
             
-            # fractional_structure_only_preds[val_idx,ik] , _ = find_k_nearest_label(fractional_structure_only_matrix[val_idx],k)
-            # homomorphism_dist_preds[val_idx,ik] , _ = find_k_nearest_label(homomorphism_dist_matrix[val_idx],k)
+            spectral_preds[val_idx,ik], _ = find_k_nearest_label(spectral_matrix[val_idx],k)
 
+            convex_isomorphism_preds[val_idx,ik], _ = find_k_nearest_label(convex_isomorphism_matrix[val_idx],k)
+
+            subgraph_dist_preds[val_idx, ik] , _ = find_k_nearest_label(subgraph_distance_matrix[val_idx],k)
+            subgraph_dist_preds_frac[val_idx, ik] , _ = find_k_nearest_label(subgraph_distance_matrix_frac[val_idx],k)
+ 
 
         true_labels[val_idx] = val_data.y
 
-        
-
-        # clear_output()
-    
-    # lines = []
 
     print('################################')
     print('################################')
@@ -226,14 +167,14 @@ def run_knn_experiment(dataset):
         print(f'with k={k}')
         print(f'spectral report:\n {classification_report(true_labels, spectral_preds[:,ik])}')
         print('================================================================\n')
-        print(f'fractional report:\n {classification_report(true_labels, fractional_preds[:,ik])}')
+        print(f'convex report:\n {classification_report(true_labels, convex_isomorphism_preds[:,ik])}')
         print('================================================================\n')
-        print(f'fractional_constrained report:\n {classification_report(true_labels, fractional_constrained_preds[:,ik])}')
+        print(f'integral report:\n {classification_report(true_labels, subgraph_dist_preds[:,ik])}')
         print('================================================================\n')
-        # print(f'integral report:\n {classification_report(true_labels, integral_preds[:,ik])}')
-        # print('===============================================================\n')
+        print(f'fractional report:\n {classification_report(true_labels, subgraph_dist_preds_frac[:,ik])}')
+        print('===============================================================\n')
         # print(f'integral_constrained report:\n {classification_report(true_labels, integral_constrained_preds[:,ik])}')
-        print('================================================================')
+        # print('================================================================')
         # print(f'structure only report:\n {classification_report(true_labels, fractional_structure_only_preds[:,ik])}')
         # print('================================================================')
         # print(f'homomorphism report:\n {classification_report(true_labels, homomorphism_dist_preds[:,ik])}')
@@ -248,13 +189,13 @@ def run_knn_experiment(dataset):
         report.write('================================================\n')
         report.write(f'with k={k}\n')
         report.write(f'spectral report:\n {classification_report(true_labels, spectral_preds[:,ik])}')
-        # report.write('================================================================\n')
-        # report.write(f'fractional report:\n {classification_report(true_labels, fractional_preds[:,ik])}')
         report.write('================================================================\n')
-        report.write(f'fractional_constrained report:\n {classification_report(true_labels, fractional_constrained_preds[:,ik])}')
-        # report.write('================================================================\n')
-        # report.write(f'integral report:\n {classification_report(true_labels, integral_preds[:,ik])}')
-        # report.write('================================================================\n')
+        report.write(f'convex report:\n {classification_report(true_labels, convex_isomorphism_preds[:,ik])}')
+        report.write('================================================================\n')
+        report.write(f'integral report:\n {classification_report(true_labels, subgraph_dist_preds[:,ik])}')
+        report.write('================================================================\n')
+        report.write(f'fractional report:\n {classification_report(true_labels, subgraph_dist_preds_frac[:,ik])}')
+        report.write('================================================================\n')
         # report.write(f'integral_constrained report:\n {classification_report(true_labels, integral_constrained_preds[:,ik])}')
         # report.write('================================================================\n')
         # report.write(f'fractional_structure_only report:\n {classification_report(true_labels, fractional_structure_only_preds[:,ik])}')

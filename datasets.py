@@ -33,9 +33,9 @@ def load_dataset(name, verbose=True):
     elif name == 'COX2':
         dataset = TUDataset(root='datasets/COX2', name='COX2')
     elif name == 'Letter-high':
-        dataset = TUDataset(root='datasets/Letter-high', name='Letter-high', transform=Constant(1))
+        dataset = TUDataset(root='datasets/Letter-high', name='Letter-high', use_node_attr=True)
     elif name == 'Letter-low':
-        dataset = TUDataset(root='datasets/Letter-low', name='Letter-low', transform=Constant(1))
+        dataset = TUDataset(root='datasets/Letter-low', name='Letter-low', use_node_attr=True)
     elif name == 'TRIANGLES':
         dataset = TUDataset(root='datasets/TRIANGLES', name='TRIANGLES', transform=Constant(1))
     elif name == 'IMDB-MULTI':
@@ -113,8 +113,8 @@ def get_train_val_test_loaders(dataset):
     dataset = dataset.shuffle()
 
     # Define train, validation, and test split sizes
-    train_size = int(0.03 * len(dataset))
-    val_size = int(0.015 * len(dataset))
+    train_size = int(0.3 * len(dataset))
+    val_size = int(0.2 * len(dataset))
     test_size = len(dataset) - train_size - val_size
 
     # Split the dataset
@@ -191,6 +191,11 @@ def get_m_shot_loaders(dataset, m, batch_size=1, val_split=0.5):
     # # Create subsets for validation and test sets
     # val_subset = dataset.index_select(val_indices)
     # test_subset = dataset.index_select( test_indices)
+
+    # Check the dataset
+    print(f"Number of graphs in the training set: {len(train_indices)}")
+    print(f"Number of graphs in the validation set: {len(val_indices)}")
+    print(f"Number of graphs in the test set: {len(test_indices)}")
 
     return train_loader, val_loader, test_loader
 

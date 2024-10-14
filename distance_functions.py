@@ -19,78 +19,68 @@ from scipy.stats import wasserstein_distance
 import torch
 import cvxpy as cp
 
+from distance_utilities import cosine_similarity_matrix, rbf_kernel
+
 # ----------------------------------------------------------------
 # ----------------------------------------------------------------
-# subgraph isomorphism distance
+# our distances
 #
 
-def subgraph_isomorphism_distance_no_loops(phi_G, Adj_G, phi_H, Adj_H, lam, mapping='fractional'):
+def graph_convex_isomorphism(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance = 'L2'):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
-    C = torch.cdist(phi_G, phi_H, p=2).detach().cpu().numpy()
+    # Compute the Euclidean distances between node features
+    if euclidean_distance == 'L2':
+        C = torch.cdist(phi_G, phi_H, p=2).detach().cpu().numpy()
+    else:
+        phi_G = phi_G.detach().cpu().numpy()
+        phi_H = phi_H.detach().cpu().numpy()
 
-    C = np.pad(C, ((0, 0), (0, 1)), mode='constant', constant_values=lam)
+        if euclidean_distance == 'cosine':
+            C = cosine_distances(phi_G, phi_H)
+        elif euclidean_distance == 'mahalanobis':
+            C = compute_mahalanobis_distance_matrix(phi_G, phi_H)
+        elif euclidean_distance == 'wasserstein':
+            C = compute_wasserstein_distance_matrix(phi_G, phi_H)
+        else:
+            raise Exception('wrong euclid metric')
 
     # Get adjacency matrices and print their shapes
     A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
     A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
 
-    A_H_aug = np.pad(A_H, ((0, 1), (0, 1)), mode='constant', constant_values=1)
+    
+    X = cp.Variable((num_v_G, num_v_H), nonneg=True)  # Fractional mapping (num_v_G, num_v_H)
+    x_v_empty = cp.Variable(num_v_G, nonneg=True)  # Unmapped vertices in G (num_v_G,)
+    x_empty_i = cp.Variable(num_v_H, nonneg=True)  # Unmapped vertices in H (num_v_H,)
+    # Objective function: minimize the total cost
+    cost = cp.sum(cp.multiply(C, X)) + lam * cp.sum(x_v_empty) + lam * cp.sum(x_empty_i) + cp.norm(A_G @ X - X @ A_H, "fro")
 
-    if mapping == 'integral':
-        X = cp.Variable((num_v_G, num_v_H + 1), boolean=True)
-    else:
-        X = cp.Variable((num_v_G, num_v_H + 1), nonneg=True)
-
-    objective = cp.sum(cp.multiply(C, X)) 
-
+    # Correct structural constraint
     constraints = [
-        X <= 1,
-        cp.sum(X, axis=1) == 1,
+        X <= 1,  # Ensure the fractional mapping is between 0 and 1
+        x_v_empty <= 1,  # Ensure unmapped vertices in G are between 0 and 1
+        x_empty_i <= 1,  # Ensure unmapped vertices in H are between 0 and 1
+        x_v_empty + cp.sum(X, axis=1) == 1,  # For all v in V(G)
+        x_empty_i + cp.sum(X, axis=0) == 1,  # For all i in V(H)
+        
     ]
-
-    constraints += [
-        cp.sum(X[:, i]) <= 1 for i in range(num_v_H)  # For all columns except the last
-    ]
-
-    # Constraint 2: For each edge uv in G and ij not in E(H^+), sum(x_{u,i} + x_{v,j}) <= 1
-    for u in range(num_v_G):
-        for v in range(num_v_G):
-            if A_G[u, v] == 1:  # If uv is an edge in G
-                for i in range(num_v_H + 1):
-                    for j in range(num_v_H + 1):
-                        if A_H_aug[i, j] == 0:  # If ij is NOT an edge in H^+
-                            constraints.append(X[u, i] + X[v, j] <= 1)
-
-    # Constraint 3: For uv not in G and ij in E(H), sum(x_{u,i} + x_{v,j}) <= 1
-    for u in range(num_v_G):
-        for v in range(num_v_G):
-            if A_G[u, v] == 0:  # If uv is NOT an edge in G
-                for i in range(num_v_H):
-                    for j in range(num_v_H):
-                        if A_H_aug[i, j] == 1:  # If ij is an edge in H^+
-                            constraints.append(X[u, i] + X[v, j] <= 1)
-
-
-
+    
     try:
         # Solve the LP problem
-        problem = cp.Problem(cp.Minimize(objective), constraints)
+        problem = cp.Problem(cp.Minimize(cost), constraints)
 
-        if mapping == 'integral':
-            problem.solve(solver=cp.GLPK_MI)#, verbose=True)
-        else:
-            problem.solve(solver=cp.SCS)
+        problem.solve(solver = cp.SCS)
 
-        # Return the minimum cost and mapping
-        return problem.value, X.value, C
+        # print(f"LP solved successfully for validation graph {val_idx} and training graph {train_idx} with cost: {problem.value}")
+        return problem.value , X.value, x_v_empty.value, x_empty_i.value, C # Return the minimum cost
 
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
         raise e
 
-def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam, mapping='fractional'):
+def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam,  mapping='fractional'):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
@@ -112,7 +102,19 @@ def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam, mapping='frac
     else:
         X = cp.Variable((num_v_G + 1, num_v_H + 1), nonneg=True)
 
-    objective = cp.sum(cp.multiply(C, X)) 
+
+    if mapping == 'fractional':
+        # Regularization coefficient
+        lambda_reg = 0.1  # Tune this to control the strength of the regularization
+
+        # Entropy term: -x * log(x) - (1 - x) * log(1 - x)
+        # entropy_term = cp.sum(cp.norm(X*(X-1)))
+
+        objective = cp.sum(cp.multiply(C, X)) #+ 100 * cp.norm(X) #+ entropy_term
+    else:      
+        objective = cp.sum(cp.multiply(C, X)) 
+
+
 
     constraints = [
         X <= 1,
@@ -152,16 +154,173 @@ def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam, mapping='frac
         problem = cp.Problem(cp.Minimize(objective), constraints)
 
         if mapping == 'integral':
-            problem.solve(solver=cp.GLPK_MI)#, verbose=True)
+            
+            problem.solve(solver=cp.GLPK_MI)#, max_iter = 1000)#, verbose=True)
         else:
             problem.solve(solver=cp.SCS)
-
+    
+        # print(f'val frac:{np.sum(C * X.value)}')
         # Return the minimum cost and mapping
         return problem.value, X.value, C
 
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
         raise e
+
+################################################################
+# based on other metrics
+
+def subgraph_isomorphism_metric(phi_G, Adj_G, phi_H, Adj_H, mapping='fractional', euclidean_kernel = 'rbf'):
+    num_v_G = phi_G.size(0)  # Number of vertices in graph G
+    num_v_H = phi_H.size(0)  # Number of vertices in graph H
+
+
+    if euclidean_kernel == 'rbf':
+        C = torch.cdist(phi_G, phi_H, p=2).detach().cpu().numpy()
+        C = rbf_kernel(C, 0.1)
+    elif euclidean_kernel == 'cosine':
+        C = cosine_similarity_matrix(phi_G, phi_H) # not sure if its ok
+
+
+    phi_G = phi_G.numpy()
+    phi_H = phi_H.numpy()
+
+ 
+    # Get adjacency matrices and print their shapes
+    A_G = Adj_G.detach().cpu().numpy()  # (num_v_G, num_v_G)
+    A_H = Adj_H.detach().cpu().numpy()  # (num_v_H, num_v_H)
+
+
+    if mapping == 'integral':
+        X = cp.Variable((num_v_G, num_v_H), boolean=True)
+    else:
+        X = cp.Variable((num_v_G, num_v_H), nonneg=True)
+
+    # distance = 
+
+    objective = cp.sum(cp.multiply(C, X)) 
+
+    constraints = [
+        X <= 1,
+    ]
+
+    constraints += [
+       cp.sum(X, axis=1) <= 1 # For all rows except the last
+    ]
+
+    constraints += [
+        cp.sum(X, axis=0) <= 1 # For all columns except the last
+    ]
+
+    # Constraint 2: For each edge uv in G and ij not in E(H^+), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G[u, v] == 1:  # If uv is an edge in G
+                for i in range(num_v_H ):
+                    for j in range(num_v_H ):
+                        if A_H[i, j] == 0:  # If ij is NOT an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
+
+    # Constraint 3: For uv not in G and ij in E(H), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G[u, v] == 0:  # If uv is NOT an edge in G
+                for i in range(num_v_H):
+                    for j in range(num_v_H):
+                        if A_H[i, j] == 1:  # If ij is an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
+
+
+
+    try:
+        # Solve the LP problem
+        problem = cp.Problem(cp.Maximize(objective), constraints)
+
+        if mapping == 'integral':
+            problem.solve(solver=cp.GLPK_MI)#, verbose=True)
+        else:
+            problem.solve(solver=cp.SCS)
+
+
+        print(f'obj value{problem.value}')
+        print(f'obj value{objective.value}')
+
+        MCS = objective.value
+        # Return the minimum cost and mapping
+        return 1 - MCS/(num_v_G+num_v_H - MCS), X.value, C
+
+    except Exception as e:
+        print(f"Error occurred while solving LP: {e}")
+        raise e
+    
+
+def recursive_subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam = 1, mapping='fractional', max_depth=10, weight_decay=0.5, average = False, metric = False):
+    """
+    Recursive subgraph isomorphism distance with a weighted sum.
+    
+    weight_decay: The decay factor for weights (default is 0.5).
+    max_depth: The maximum recursion depth to avoid infinite loops.
+    """
+    total_weighted_distance = 0
+    total_weight = 0
+    depth = 0
+
+    while depth < max_depth and phi_G.size(0) > 0 and phi_H.size(0) > 0:
+        # Calculate the subgraph isomorphism distance for current graphs
+        if metric:
+            distance, X_value, C = subgraph_isomorphism_metric(phi_G, Adj_G, phi_H, Adj_H, mapping)
+        else:
+            distance, X_value, C = subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam, mapping)
+
+
+        # Calculate the weight for this step
+        weight = weight_decay ** depth
+
+        # Accumulate the weighted distance
+        total_weighted_distance += weight * distance
+        total_weight += weight
+
+        # # Now, we need to remove the vertices that participated in the MCS
+        # matched_indices_G = np.argmax(X_value, axis=1)  # Get indices of matched vertices in G
+        # matched_indices_H = np.argmax(X_value, axis=0)  # Get indices of matched vertices in H
+
+        # Now, we need to identify vertices to remove for the next iteration
+        matched_indices_G = []
+        matched_indices_H = []
+        # Check if x_{v,i} >= 1/2, then count v and i as included in MCS
+        for v in range(X_value.shape[0]):  # For each vertex in G
+            for i in range(X_value.shape[1]):  # For each vertex in H
+                if X_value[v, i] >= 0.5:
+                    matched_indices_G.append(v)
+                    matched_indices_H.append(i)
+
+        # If no vertices were matched in this iteration, break the recursion
+        if not matched_indices_G and not matched_indices_H:
+            break  
+
+
+        # Remove the matched vertices from phi_G and phi_H
+        phi_G_remain = np.delete(phi_G, matched_indices_G, axis=0)
+        phi_H_remain = np.delete(phi_H, matched_indices_H, axis=0)
+
+        # Remove the corresponding rows and columns from adjacency matrices
+        Adj_G_remain = np.delete(np.delete(Adj_G, matched_indices_G, axis=0), matched_indices_G, axis=1)
+        Adj_H_remain = np.delete(np.delete(Adj_H, matched_indices_H, axis=0), matched_indices_H, axis=1)
+
+        # Update the features and adjacency matrices
+        phi_G = phi_G_remain #torch.from_numpy(phi_G_remain)
+        phi_H = phi_H_remain #torch.from_numpy(phi_H_remain)
+        Adj_G = Adj_G_remain #torch.from_numpy(Adj_G_remain)
+        Adj_H = Adj_H_remain #torch.from_numpy(Adj_H_remain)
+
+        # Increment recursion depth
+        depth += 1
+
+    # Final weighted distance is the total weighted sum divided by the total weight
+    if total_weight > 0:
+        return total_weighted_distance / total_weight if average else total_weighted_distance
+    else:
+        return float('inf')  # Handle case where no valid matches were found
 
 # ----------------------------------------------------------------
 # ----------------------------------------------------------------
