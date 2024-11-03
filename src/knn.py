@@ -59,6 +59,7 @@ def run_knn(dataset, k_values, distance_funcs, num_train, num_val, num_test=0, n
                 neighbors = distances[:k]
                 neighbor_labels = [labels[idx] for idx, _ in neighbors]
                 # Predict the most common label
+                neighbor_labels = [int(x) for x in neighbor_labels]
                 most_common_label = np.bincount(neighbor_labels).argmax()
                 y_pred.append(most_common_label)
             

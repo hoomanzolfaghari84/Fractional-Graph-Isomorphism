@@ -26,6 +26,10 @@ def run(dataset_name, train_num, val_num):
 
 
 if __name__ == '__main__':
+
+    a = [1.0, 2.0, 3.0, 4.0]
+    print([int(x) for x in a])
+
     parser = argparse.ArgumentParser(
         description="Script to run the experiments"
     )
