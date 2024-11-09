@@ -88,16 +88,63 @@ def get_dataloaders(dataset, train_num, val_num, test_num=0):
     return train_loader, val_loader, test_loader
 
 
-def get_datasubsets(dataset, train_num, val_num, test_num=0):
+def balanced_subset(dataset, m):
+    # Create a dictionary to store m graphs per class for the training set
+    label_dict = {}
+    train_data = []
+    train_indices = set()
+
+    # Create the balanced training set
+    for idx, data in enumerate(dataset):
+        label = data.y.item()
+        if label not in label_dict:
+            label_dict[label] = []
+        
+        if len(label_dict[label]) < m:
+            label_dict[label].append(data)
+            train_data.append(data)
+            train_indices.add(idx)
+        
+        # Stop if we have m samples for each label
+        if all(len(samples) >= m for samples in label_dict.values()):
+            break
+
+    return train_data, train_indices
+
+def get_datasubsets(dataset, train_num, val_num, test_num=0, each_class_train=None):
+
     # Ensure the total number of requested samples does not exceed the dataset size
-    total_requested = train_num + val_num + test_num
+    if each_class_train is not None:
+        total_requested = each_class_train * dataset.num_classes  + val_num + test_num
+    else:
+        total_requested = train_num + val_num + test_num
+
     if total_requested > len(dataset):
         raise ValueError("Requested more samples than available in the dataset")
-
+    
     # Shuffle and split the dataset
     shuffled_dataset = dataset.shuffle()
-    train_dataset = shuffled_dataset[:train_num]
-    val_dataset = shuffled_dataset[train_num:train_num + val_num]
-    test_dataset = shuffled_dataset[train_num + val_num:train_num + val_num + test_num]
+    if each_class_train is not None:
+        train_dataset, train_indices = balanced_subset(dataset, each_class_train)
+        val_dataset, val_indices = [], set()
+        # Create validation set excluding training indices
+        for idx, data in enumerate(shuffled_dataset):
+            if idx not in train_indices:
+                val_dataset.append(data)
+                val_indices.add(idx)
+            if len(val_dataset) >= val_num: break
+        
+        test_dataset = []
+        if test_num != 0:
+            idx = 0
+            while len(test_dataset) < test_num:
+                if idx not in train_indices and idx not in val_indices:
+                    test_dataset.append(shuffled_dataset[idx])
+                idx = idx + 1
+                
+    else:
+        train_dataset = shuffled_dataset[:train_num]
+        val_dataset = shuffled_dataset[train_num:train_num + val_num]
+        test_dataset = shuffled_dataset[train_num + val_num:train_num + val_num + test_num]
 
     return train_dataset, val_dataset, test_dataset

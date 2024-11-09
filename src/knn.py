@@ -10,7 +10,7 @@ import pandas as pd
 from torch_geometric.utils import to_networkx, to_dense_adj
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 
-def run_knn(dataset, k_values, distance_funcs, num_train, num_val, num_test=0, n_jobs=1):
+def run_knn(dataset, k_values, distance_funcs, num_train, num_val, num_test=0, n_jobs=1, each_class_train = None):
     """
     Perform k-Nearest Neighbors on PyG graphs using different custom distance functions and k values.
     
@@ -24,7 +24,7 @@ def run_knn(dataset, k_values, distance_funcs, num_train, num_val, num_test=0, n
         dict: A dictionary with results for each distance function and k value.
     """
     
-    train_dataset, val_dataset, _ = get_datasubsets(dataset, num_train, num_val)
+    train_dataset, val_dataset, _ = get_datasubsets(dataset, num_train, num_val, each_class_train = each_class_train)
 
 
     # Extract embeddings/features and labels from each graph in the dataset

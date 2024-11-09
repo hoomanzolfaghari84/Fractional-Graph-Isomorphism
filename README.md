@@ -1,6 +1,5 @@
 # [Creating Graph Distances Based on Fractional Isomorphism]
 
-
 **notice**: this repo is for our **ongoing research**, we are open to collaborations and ideas but please contact us before using the ideas in the code or cite this repo.
 
 **this README incomplete**
@@ -17,7 +16,7 @@ In the light if GNNs being bounded by WL-test we tried to find other ways of mea
 The full paper is available at:
 
 - [Link to your paper (arXiv, journal, etc.)](#)
-- Citation: 
+- Citation:
 
 ```bibtex
 @article{your_paper_reference,
