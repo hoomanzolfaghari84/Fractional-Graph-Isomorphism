@@ -1,0 +1,5 @@
+Distance Function,k,wa precision,wa recall,wa f1-score,wa support,accuracy score
+subgraph_isomorphism_distance,k=1,1.0,1.0,1.0,1.0,1.0
+subgraph_isomorphism_distance fractional,k=1,1.0,1.0,1.0,1.0,1.0
+graph_convex_isomorphism,k=1,1.0,1.0,1.0,1.0,1.0
+wasserstein_spectral_distance,k=1,1.0,1.0,1.0,1.0,1.0

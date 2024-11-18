@@ -13,7 +13,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Run the main.py
-python main.py --dataset=TRIANGLES --train_num=200 --val_num=100 --workers_num=4 --each_class_train=10 
+python src/main.py --dataset=TRIANGLES --train_num=200 --val_num=100 --workers_num=4 --each_class_train=10 
 
 # Deactivate the virtual environment after script execution
 deactivate

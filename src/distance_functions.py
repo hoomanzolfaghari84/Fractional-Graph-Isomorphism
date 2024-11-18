@@ -15,15 +15,20 @@ import cvxpy as cp
 
 class DistanceFuntion :
 
-    def __init__(self, name = 'subgraph_isomorphism_distance', fractional = False, euclidean_distance = 'L2', lam = 2):
+    def __init__(self, name = 'subgraph_isomorphism_distance', fractional = False, euclidean_distance = 'L2', lam = 2, dense = True):
         self.name = name
         self.fractional = fractional
         self.euclidean_distance = euclidean_distance
         self.lam = lam
+        self.dense = dense
 
-    def __call__(self, data1, data2):
+    def __call__(self, data1, data2, adj1=None, adj2=None):
        
        if self.name == 'subgraph_isomorphism_distance':
+           
+           if self.dense:
+            return subgraph_isomorphism_distance(data1, adj1, data2, adj2, self.lam, self.fractional)
+           
            data1_x, data1_adj = data1.x, to_dense_adj(data1.edge_index, max_num_nodes=data1.x.size(0)).squeeze(0)
            data2_x, data2_adj = data2.x, to_dense_adj(data2.edge_index, max_num_nodes=data2.x.size(0)).squeeze(0)
            d, _, _  = subgraph_isomorphism_distance(data1_x, data1_adj, data2_x, data2_adj, self.lam, self.fractional)
@@ -97,12 +102,15 @@ def graph_convex_isomorphism(phi_G, Adj_G, phi_H, Adj_H, lam, euclidean_distance
         raise e
 
 
-def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam,  mapping='fractional'):
+
+
+def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam,  mapping='fractional', C = None):
     num_v_G = phi_G.size(0)  # Number of vertices in graph G
     num_v_H = phi_H.size(0)  # Number of vertices in graph H
 
-        # Cost matrix initialization with lambda for the added vertex
-    C = torch.cdist(phi_G, phi_H, p=2).numpy()
+    # Cost matrix initialization with lambda for the added vertex
+    C = torch.cdist(phi_G, phi_H, p=2).numpy() if C is None  else C
+    
     C = np.pad(C, ((0, 1), (0, 1)), mode='constant', constant_values=lam)
     C[num_v_G, num_v_H] = 0  # C(0,0) = 0
 
@@ -173,6 +181,40 @@ def subgraph_isomorphism_distance(phi_G, Adj_G, phi_H, Adj_H, lam,  mapping='fra
     except Exception as e:
         print(f"Error occurred while solving LP: {e}")
         raise e
+
+def build_mcs_constraints(X, num_v_G, num_v_H, A_G, A_H):
+    constraints = [
+        X <= 1,
+        X[num_v_G, num_v_H] == 1 # x_{0,0} = 1
+    ]
+
+    # Row constraints: sum of mappings for each vertex in G
+    constraints += [
+        cp.sum(X[v, :]) == 1 for v in range(num_v_G)  # For all rows except the last
+    ]
+
+    # Column constraints: sum of mappings for each vertex in H
+    constraints += [
+        cp.sum(X[:, i]) == 1 for i in range(num_v_H)  # For all columns except the last
+    ]
+
+    # For each edge uv in G and ij not in E(H^+), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G[u, v] == 1:  # If uv is an edge in G
+                for i in range(num_v_H):
+                    for j in range(num_v_H):
+                        if A_H[i, j] == 0:  # If ij is NOT an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
+
+    # For uv not in G^+ and ij in E(H), sum(x_{u,i} + x_{v,j}) <= 1
+    for u in range(num_v_G):
+        for v in range(num_v_G):
+            if A_G[u, v] == 0:  # If uv is NOT an edge in G
+                for i in range(num_v_H):
+                    for j in range(num_v_H):
+                        if A_H[i, j] == 1:  # If ij is an edge in H^+
+                            constraints.append(X[u, i] + X[v, j] <= 1)
 
 
 

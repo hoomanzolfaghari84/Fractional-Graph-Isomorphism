@@ -1,0 +1,17 @@
+Distance Function,k,wa precision,wa recall,wa f1-score,wa support,accuracy score
+subgraph_isomorphism_distance,k=1,0.8916666666666668,0.8,0.8083333333333332,20.0,0.8
+subgraph_isomorphism_distance,k=3,0.8859649122807017,0.75,0.7416666666666667,20.0,0.75
+subgraph_isomorphism_distance,k=7,0.515625,0.5,0.42000000000000004,20.0,0.5
+subgraph_isomorphism_distance,k=15,0.5614035087719299,0.5,0.4666666666666666,20.0,0.5
+subgraph_isomorphism_distance fractional,k=1,0.8916666666666668,0.8,0.8083333333333332,20.0,0.8
+subgraph_isomorphism_distance fractional,k=3,0.8859649122807017,0.75,0.7416666666666667,20.0,0.75
+subgraph_isomorphism_distance fractional,k=7,0.515625,0.5,0.42000000000000004,20.0,0.5
+subgraph_isomorphism_distance fractional,k=15,0.5614035087719299,0.5,0.4666666666666666,20.0,0.5
+graph_convex_isomorphism,k=1,0.9,0.85,0.85,20.0,0.85
+graph_convex_isomorphism,k=3,0.8947368421052632,0.8,0.7833333333333333,20.0,0.8
+graph_convex_isomorphism,k=7,0.8333333333333333,0.75,0.6916666666666667,20.0,0.75
+graph_convex_isomorphism,k=15,0.9074074074074073,0.85,0.8133333333333332,20.0,0.85
+wasserstein_spectral_distance,k=1,0.5714285714285714,0.35,0.35,20.0,0.35
+wasserstein_spectral_distance,k=3,0.6428571428571429,0.4,0.39999999999999997,20.0,0.4
+wasserstein_spectral_distance,k=7,0.4642857142857143,0.35,0.315,20.0,0.35
+wasserstein_spectral_distance,k=15,0.21153846153846154,0.2,0.15333333333333332,20.0,0.2
