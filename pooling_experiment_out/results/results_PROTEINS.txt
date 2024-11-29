@@ -1,4 +1,0 @@
-Dataset: PROTEINS
-Best Validation Accuracy: {'Metric': 0.7272727272727273, 'Readout': 0.7545454545454545}
-Test Accuracy: {'Metric': 0.6909090909090909, 'Readout': 0.6181818181818182}
-Median Time per Epoch: {'Metric': 2890.50390625, 'Readout': 34.82080078125}
