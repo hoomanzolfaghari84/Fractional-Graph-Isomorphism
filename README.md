@@ -2,7 +2,7 @@
 
 **notice**: this repo is for our **ongoing research**, we are open to collaborations and ideas but please contact us before using the ideas in the code or cite this repo.
 
-**this README incomplete**
+**This README Incomplete**
 
 [![DOI](https://zenodo.org/badge/DOI/YOUR-DOI-HERE.svg)](https://doi.org/YOUR-DOI-HERE)  
 [Optional: Add status badges for build, tests, etc.]

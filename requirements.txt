@@ -3,18 +3,18 @@ torch==2.4.1
 
 # PyTorch Geometric and related libraries
 torch_geometric==2.6.0
-pyg_lib==0.4.0
-torch_scatter==2.1.2
-torch_sparse==0.6.18
-torch_cluster==1.6.3
-torch_spline_conv==1.2.2
+# pyg_lib==0.4.0
+# torch_scatter==2.1.2
+# torch_sparse==0.6.18
+# torch_cluster==1.6.3
+# torch_spline_conv==1.2.2
 
 # Additional required packages
-cvxpy==1.5.3
+# cvxpy==1.5.3
 networkx==3.2.1
 numpy==1.26.3
 scipy==1.12.0
-grakel==0.1.8
-POT==0.9.4
+# grakel==0.1.8
+# POT==0.9.4
 scikit-learn==1.5.2
 pandas==2.2.3

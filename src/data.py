@@ -1,51 +1,60 @@
-
-from torch_geometric.datasets import TUDataset, Planetoid
+import os
+import logging
 from torch_geometric.loader import DataLoader
-from torch.utils.data import random_split
 from torch_geometric.transforms import NormalizeFeatures, Constant
-from collections import defaultdict
-import torch
 from torch_geometric.datasets import TUDataset
-from collections import Counter
-import torch
-from random import shuffle
 import random
-import torch
+
+data_dir = '../datasets'
+
+def dataset_reports(dataset, verbose=True, path=None):
+
+    report = [f'Dataset: {dataset}', '====================', f'Number of graphs: {len(dataset)}',
+              f'Number of features: {dataset.num_features}', f'Number of classes: {dataset.num_classes}']
+
+    # Information about the dataset
+
+    # Information about the first graph in the dataset
+    data = dataset[0]
+    report.append(f'First graph details: {data}')
+
+    # Statistics about the dataset
+    num_nodes_list = [data.num_nodes for data in dataset]
+    num_edges_list = [data.num_edges for data in dataset]
+    mean_features_list = [data.x.mean(dim=0) for data in dataset]
 
 
-data_dir = 'datasets'
+    report.append(f'Average number of nodes: {sum(num_nodes_list) / len(num_nodes_list)}')
+    report.append(f'Average number of edges: {sum(num_edges_list) / len(num_edges_list)}')
+    report.append(f'Average node features: {sum(mean_features_list) / len(mean_features_list)}')
 
-def dataset_reports(dataset):
-    # information about the dataset
-        print()
-        print(f'Dataset: {dataset}:')
-        print('====================')
-        print(f'Number of graphs: {len(dataset)}')
-        print(f'Number of features: {dataset.num_features}')
-        print(f'Number of classes: {dataset.num_classes}')
+    classes = {}
+    for data in dataset:
+        if data.y.item() not in classes:
+            classes[data.y.item()] = 1
+        else:
+            classes[data.y.item()] += 1
 
-        # information about the first graph in the dataset
-        data = dataset[0]
-        print()
-        print(data)
-        print(f'is directed: {data.is_directed()}')
-        print('=============================================================')
+    report.append(f'Class frequency: {classes}')
+    # Print to console if verbose is True
+    if verbose:
+        for line in report:
+            print(line)
 
-        # some statistics about the dataset
-        num_nodes_list = [data.num_nodes for data in dataset]
-        num_edges_list = [data.num_edges for data in dataset]
-        mean_features_list =[data.x.mean(dim = 0) for data in dataset]
-        classes = {}
-        for data in dataset:
-            if data.y.item() not in classes:
-                classes[data.y.item()] = 1
-            else:
-                classes[data.y.item()] += 1
+    # Log to file
+    if path:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        print(f'Average number of nodes: {sum(num_nodes_list) / len(num_nodes_list)}')
-        print(f'Average number of edges: {sum(num_edges_list) / len(num_edges_list)}')
-        print(f'Average node features: {sum(mean_features_list) / len(mean_features_list)}')
-        print(f'Class frequency:{classes}')
+        # Open the file in write mode ('w') or append mode ('a')
+        with open(path, 'w') as file:
+            for line in report:
+                file.write(line + '\n')
+
+        # for line in report:
+        #     logging.info(line)
+
+    return report, classes
 
 
 def load_dataset(name, verbose=True, *args):
