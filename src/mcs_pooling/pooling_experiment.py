@@ -56,7 +56,7 @@ def run_pooling_experiment(dataset_name, train_num, val_num, test_num, device='c
             None
     """
 
-    root_dir = './../outputs/pooling_experiment_out'
+    root_dir = './outputs/pooling_experiment_out'
     
     # Define experiment directory
     if run_name:
